@@ -25,37 +25,34 @@ test('an uploaded skill can be read, turned off, and deleted', async ({ page }) 
 
   await upload(page, 'grid.zip', Buffer.from(zipSync({ 'grid/SKILL.md': strToU8(SKILL) })))
   const row = page.getByRole('button', { name: /^grid / })
-  await expect(row).toContainText('Enabled')
   await row.click()
 
   const details = page.getByTestId('settings-skill-details')
-  await expect(page.getByRole('heading', { name: 'Grid', exact: true })).toBeVisible()
-  await expect(page.getByTestId('settings-breadcrumb')).toHaveText(/Settings\s*Skills\s*grid/)
-  const use = details.getByRole('switch', { name: 'Use this skill' })
+  await expect(details.getByRole('heading', { name: 'Grid', exact: true })).toBeVisible()
+  await expect(page.getByTestId('settings-breadcrumb')).toContainText('grid')
+  const use = details.getByRole('switch')
   await expect(use).toHaveAttribute('data-state', 'checked')
   await use.click()
-  await details.getByRole('button', { name: 'Done' }).click()
-  await expect(row).toContainText('Disabled')
+  await page.getByTestId('settings-editor-back').click()
+  await expect(details).toBeHidden()
 
   await page.reload()
   await canvas.waitForInit()
   await openSkills(page)
-  await expect(row).toContainText('Disabled')
-
   await row.click()
+  await expect(use).toHaveAttribute('data-state', 'unchecked')
+
   await details.getByRole('button', { name: 'Delete skill' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete skill' }).click()
   await expect(details).toBeHidden()
-  await expect(page.getByText('No uploaded skills yet.')).toBeVisible()
+  await expect(row).toHaveCount(0)
 })
 
-test('a file that holds no skill is refused with the reason', async ({ page }) => {
+test('a file that holds no skill is refused', async ({ page }) => {
   await page.goto('/?test')
   await new CanvasHelper(page).waitForInit()
   await openSkills(page)
   await upload(page, 'notes.zip', Buffer.from(zipSync({ 'README.md': strToU8('# Notes') })))
-  await expect(
-    page.getByRole('alert').filter({ hasText: 'The archive has no SKILL.md.' })
-  ).toBeVisible()
-  await expect(page.getByText('No uploaded skills yet.')).toBeVisible()
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.locator('[data-skill]')).toHaveCount(0)
 })

@@ -28,7 +28,7 @@ test('Pi gets the skills the model may load, with their files', async () => {
 })
 
 test('files past the size budget are left out, the instructions stay', async () => {
-  const large = 'x'.repeat(400 * 1024)
+  const large = 'x'.repeat(300 * 1024)
   const skills = ['first', 'second'].map((name) =>
     skillFixture({ name, files: ['big.md'], readFile: () => Promise.resolve(large) })
   )
@@ -37,4 +37,14 @@ test('files past the size budget are left out, the instructions stay', async () 
     ['first', 1],
     ['second', 0]
   ])
+})
+
+test('the budget counts UTF-8 bytes, which non-Latin text takes more of', async () => {
+  // 200 000 characters, 400 000 bytes: past the budget though shorter than it in characters.
+  const wide = skillFixture({
+    files: ['notes.md'],
+    readFile: () => Promise.resolve('é'.repeat(200_000))
+  })
+  const [skill] = await harnessSkills(library([wide]))
+  expect(skill?.files).toEqual([])
 })

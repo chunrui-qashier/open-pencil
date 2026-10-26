@@ -154,6 +154,8 @@ export function useChatSubmission(options: SubmissionOptions) {
     isPreparingAttachments.value = submission.images.length > 0
     options.clearFailure()
     try {
+      // Read before the version check below, so a cancel or newer message meanwhile wins.
+      const skill = await invokedSkill(submission.displayText)
       const currentChat = await options.ensureChat()
       if (currentChat && version === operationVersion) options.chat.value = markRaw(currentChat)
       if (!currentChat || version !== operationVersion) {
@@ -161,7 +163,6 @@ export function useChatSubmission(options: SubmissionOptions) {
         return false
       }
       const note = undone.note(submission.modelText, currentChat.messages)
-      const skill = await invokedSkill(submission.displayText)
       const noted = { ...submission, modelText: appendSkillContext(note.text, skill) }
       const previousIds = new Set(currentChat.messages.map((message) => message.id))
       if (submission.images.length === 0 && submission.nodes.length === 0) {

@@ -65,6 +65,8 @@ async function readFolders(): Promise<{ project: SkillScan; home: SkillScan }> {
 }
 
 let reading: Promise<void> | null = null
+/** Counts refresh requests, so a read knows whether another came in while it ran. */
+let requests = 0
 
 /**
  * Reads uploaded skills and the skill folders again. A repeated name resolves to the first:
@@ -72,24 +74,45 @@ let reading: Promise<void> | null = null
  * win over personal ones in Claude Code and pi.
  */
 export function refreshSkills(): Promise<void> {
-  reading ??= (async () => {
+  // A caller that arrives mid-read, such as one that just saved an upload, gets a read that
+  // starts after it did, not the one already under way.
+  requests += 1
+  if (reading) return reading
+  reading = (async () => {
     try {
-      const [uploaded, { project, home }] = await Promise.all([
-        uploadedSkillStore().list().then(skillsFromUploads),
-        readFolders()
-      ])
-      foundSkills.value = {
-        skills: [...uploaded.skills, ...project.skills, ...home.skills],
-        problems: [...uploaded.problems, ...project.problems, ...home.problems]
-      }
-    } catch (error) {
-      // The last read stays; a message must not fail because a folder could not be read.
-      console.warn('Could not read skills', error)
+      let read: number
+      do {
+        read = requests
+        await readSkills()
+      } while (requests !== read)
     } finally {
       reading = null
     }
   })()
   return reading
+}
+
+async function readSkills(): Promise<void> {
+  try {
+    const [uploaded, { project, home }] = await Promise.all([
+      uploadedSkillStore().list().then(skillsFromUploads),
+      readFolders()
+    ])
+    foundSkills.value = {
+      skills: [...uploaded.skills, ...project.skills, ...home.skills],
+      problems: [...uploaded.problems, ...project.problems, ...home.problems]
+    }
+  } catch (error) {
+    // The last read stays, so a message never fails over a folder, except the skills next to
+    // the document, which may belong to one no longer open.
+    console.warn('Could not read skills', error)
+    projectSkillsFolders.value = []
+    const { skills, problems } = foundSkills.value
+    foundSkills.value = {
+      skills: skills.filter((skill) => skill.source !== 'project'),
+      problems: problems.filter((problem) => problem.source !== 'project')
+    }
+  }
 }
 
 /** Keeps a picked file as a skill when it is one, replacing an upload with the same name. */

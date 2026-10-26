@@ -49,9 +49,9 @@ export function createSkillTools(getSkills: () => readonly Skill[]) {
           if (text.length <= MAX_FILE_LENGTH) return { path, text }
           return { path, text: text.slice(0, MAX_FILE_LENGTH), truncated: true }
         } catch (error) {
-          return {
-            error: `Could not read "${path}": ${error instanceof Error ? error.message : String(error)}`
-          }
+          // The reader's message can name places on disk the model has no need to see.
+          console.warn('Could not read a skill file', error)
+          return { error: `Could not read "${path}".` }
         }
       }
     })

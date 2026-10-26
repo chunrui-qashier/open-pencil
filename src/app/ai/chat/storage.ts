@@ -16,6 +16,7 @@ import {
   modelCredentialRevision
 } from '@/app/ai/models'
 import { OPENPENCIL_AI_PROVIDER } from '@/app/ai/providers/openpencil/provider'
+import { enabledSkills } from '@/app/ai/skills/library'
 import { cloudAIAvailable } from '@/app/cloud/integration'
 import { appCredentialServices, browserCredentialsRemembered } from '@/app/settings/credentials/app'
 import {
@@ -125,6 +126,15 @@ export function registerAIChatEffects(markTransportDirty: () => void) {
     markTransportDirty()
   })
   watch(credentialRevision, markTransportDirty)
+  // Pi gets the skills when its session starts; the built-in chat reads them per message anyway.
+  watch(
+    () =>
+      enabledSkills.value
+        .filter((skill) => skill.modelInvocable)
+        .map((skill) => `${skill.location}\n${skill.description}\n${skill.instructions}`)
+        .join('\0'),
+    markTransportDirty
+  )
   // A key saved in Settings; the chat reads it when it builds its transport.
   watch(modelCredentialRevision, () => {
     void refreshAIProviderStatus()

@@ -135,3 +135,26 @@ test('enabled skills reach the model as a listing and the tools that load them',
     store.dispose()
   }
 })
+
+test('skills the user runs only by name are neither listed nor loadable', async () => {
+  const store = createEditorStore()
+  const model = replyModel()
+  const manual = skillFixture({ name: 'release', modelInvocable: false })
+  try {
+    const transport = createToolLoopTransport({
+      store,
+      providerID: 'anthropic',
+      model,
+      effectiveModelID: 'claude-test',
+      maxOutputTokens: 100,
+      thinkingLevel: () => 'default',
+      skills: { refresh: async () => undefined, enabled: () => [manual] }
+    })
+    await send(transport)
+    const [call] = model.doStreamCalls
+    expect((call?.tools ?? []).map((tool) => tool.name)).not.toContain('load_skill')
+    expect(JSON.stringify(call?.prompt)).not.toContain('release')
+  } finally {
+    store.dispose()
+  }
+})

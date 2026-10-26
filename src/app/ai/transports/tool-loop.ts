@@ -95,10 +95,12 @@ export function createToolLoopTransport({
 }: ToolLoopTransportOptions) {
   const tools: AITools = {
     ...createAITools(store, diagnosticContext),
-    ...createSkillTools(skills.enabled)
+    ...createSkillTools(() => offeredSkills)
   }
   // Read again for each message, so skills installed or switched off since apply to the next one.
-  let offeredSkills = skills.enabled()
+  // Only skills the model may load: one the user runs by name stays out of the listing and tools.
+  const modelSkills = () => skills.enabled().filter((skill) => skill.modelInvocable)
+  let offeredSkills = modelSkills()
   let instructions = SYSTEM_PROMPT
   // The reply in progress; a transport sends one message at a time.
   let run = currentRun(store)
@@ -184,7 +186,7 @@ export function createToolLoopTransport({
       const started = startRun(store, maxAgentSteps.value, effectiveModelID)
       run = started
       await skills.refresh()
-      offeredSkills = skills.enabled()
+      offeredSkills = modelSkills()
       const catalog = skillCatalog(offeredSkills)
       instructions = catalog ? `${SYSTEM_PROMPT}\n\n${catalog}` : SYSTEM_PROMPT
       const { sessionId, runId } = diagnosticContext
