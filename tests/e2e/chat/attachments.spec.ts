@@ -149,6 +149,35 @@ test('a drag without images is left to the window', async ({ configuredChat: cha
   await expect(chat.page.locator('[data-slot="drop-overlay"]')).toBeHidden()
 })
 
+test('the drop overlay leaves with the drag even when the leave no longer lists the image', async ({
+  configuredChat: chat
+}) => {
+  // Apps such as Yoink hand their files over late, so WebKit's leave event lists no items.
+  const photo: DroppedFile[] = [{ name: 'photo.png', type: 'image/png', content: 'png' }]
+  await dragOntoChat(chat.page, photo, { drop: false })
+  const overlay = chat.page.locator('[data-slot="drop-overlay"]')
+  await expect(overlay).toBeVisible()
+
+  await chat.page.getByTestId('chat-panel').evaluate((panel) => {
+    panel.dispatchEvent(
+      new DragEvent('dragleave', { bubbles: true, dataTransfer: new DataTransfer() })
+    )
+  })
+  await expect(overlay).toBeHidden()
+})
+
+test('a drag that ends without leaving the chat hides the overlay at the next pointer move', async ({
+  configuredChat: chat
+}) => {
+  const photo: DroppedFile[] = [{ name: 'photo.png', type: 'image/png', content: 'png' }]
+  await dragOntoChat(chat.page, photo, { drop: false })
+  const overlay = chat.page.locator('[data-slot="drop-overlay"]')
+  await expect(overlay).toBeVisible()
+
+  await chat.page.mouse.move(10, 10)
+  await expect(overlay).toBeHidden()
+})
+
 test('a full message shows why more images cannot be dropped', async ({ configuredChat: chat }) => {
   const chooser = chat.page.waitForEvent('filechooser')
   await chat.page.getByRole('button', { name: 'Attach images' }).click()
