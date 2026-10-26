@@ -131,7 +131,11 @@ export function registerAIChatEffects(markTransportDirty: () => void) {
     () =>
       enabledSkills.value
         .filter((skill) => skill.modelInvocable)
-        .map((skill) => `${skill.location}\n${skill.description}\n${skill.instructions}`)
+        .map((skill) =>
+          [skill.name, skill.location, skill.description, skill.instructions, ...skill.files].join(
+            '\n'
+          )
+        )
         .join('\0'),
     markTransportDirty
   )

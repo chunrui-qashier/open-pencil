@@ -4,14 +4,15 @@ import { appSkillLibrary, type SkillLibrary } from './library'
 import type { Skill } from './types'
 
 /**
- * UTF-8 bytes a session may carry in skills, well inside the harness protocol's 1 MB line, which
- * also holds the instructions and MCP settings, and JSON escaping can nearly double plain text.
- * Files past it are left out; the instructions stay.
+ * Bytes a session may carry in skills, counted as the JSON the harness protocol sends, well
+ * inside its 1 MB line, which also holds the instructions and MCP settings. Files past it are
+ * left out; the instructions stay.
  */
 const MAX_SKILLS_BYTES = 384 * 1024
 
 const encoder = new TextEncoder()
-const byteLength = (text: string) => encoder.encode(text).byteLength
+/** The size of `text` as a JSON string, where escapes can take six bytes per character. */
+const byteLength = (text: string) => encoder.encode(JSON.stringify(text)).byteLength
 
 async function skillFiles(skill: Skill, budget: { left: number }): Promise<HarnessSkill['files']> {
   const files: NonNullable<HarnessSkill['files']> = []

@@ -127,6 +127,14 @@ export async function uploadSkill(file: File): Promise<SkillUpload> {
 
 export async function removeUploadedSkill(name: string): Promise<void> {
   await uploadedSkillStore().remove(name)
+  // Gone at once, even if the read that follows fails and keeps the rest of the last one.
+  const { skills, problems } = foundSkills.value
+  const removed = (entry: { source: string; location: string }) =>
+    entry.source === 'openpencil' && entry.location === name
+  foundSkills.value = {
+    skills: skills.filter((skill) => !removed(skill)),
+    problems: problems.filter((problem) => !removed(problem))
+  }
   await refreshSkills()
 }
 

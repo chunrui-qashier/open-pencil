@@ -48,3 +48,13 @@ test('the budget counts UTF-8 bytes, which non-Latin text takes more of', async 
   const [skill] = await harnessSkills(library([wide]))
   expect(skill?.files).toEqual([])
 })
+
+test('the budget counts the JSON escapes control characters take', async () => {
+  // 100 000 NUL bytes become 600 000 bytes of `\u0000` escapes.
+  const nul = skillFixture({
+    files: ['blob.txt'],
+    readFile: () => Promise.resolve('\u0000'.repeat(100_000))
+  })
+  const [skill] = await harnessSkills(library([nul]))
+  expect(skill?.files).toEqual([])
+})
