@@ -405,6 +405,11 @@ export const aiMessageDefaults = {
   aiSetupUseRecommended: 'Use recommended setup',
   aiSetupRolesDescription:
     'Choose a model for each kind of work. We picked recommended ones from what you connected; anything else you configured stays as it is.',
+  chatCommands: 'Skills and commands',
+  chatSkills: 'Skills',
+  chatSkillsEmpty: 'No skills to run. Add them in Settings › Skills.',
+  chatAgentCommands: params('{agent} commands'),
+  chatAgentCommandsEmpty: params('{agent} lists its commands once a chat has started.'),
   skillsUpload: 'Upload skill',
   skillsUploadedSource: 'Uploaded',
   skillsUploadedSourceDescription:

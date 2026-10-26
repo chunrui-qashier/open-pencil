@@ -5,12 +5,16 @@ import { ACP_AGENTS } from '@open-pencil/core/constants'
 import { useSelectionState } from '@open-pencil/vue/editor/selection-state'
 import { useI18n } from '@open-pencil/vue/i18n'
 
+import { agentCommands } from '@/app/ai/agents/acp/commands'
 import { revokeImagePreviewURL } from '@/app/ai/attachment/image/prepare'
 import { MAX_IMAGE_ATTACHMENTS } from '@/app/ai/attachment/image/types'
+import { agentCommandItems, skillCommandItems, type ChatCommandItem } from '@/app/ai/chat/commands'
 import type { ChatSubmission } from '@/app/ai/chat/submission/types'
 import { useAIChat } from '@/app/ai/chat/use'
 import { designModelProfile } from '@/app/ai/models'
+import { enabledSkills, refreshSkills } from '@/app/ai/skills/library'
 import { openSettingsDialog } from '@/app/settings/dialog'
+import ChatCommandMenu from '@/components/chat/ChatCommandMenu.vue'
 import ChatCreditBalance from '@/components/chat/ChatCreditBalance.vue'
 import ChatNodePreview from '@/components/chat/ChatNodePreview.vue'
 import ChatProfileSelect from '@/components/chat/ChatProfileSelect.vue'
@@ -62,7 +66,10 @@ const {
   restoreSubmission
 } = attachments
 
-const composer = useTemplateRef<{ restoreDraft: (text: string) => boolean }>('composer')
+const composer = useTemplateRef<{
+  restoreDraft: (text: string) => boolean
+  insertCommand: (command: string) => void
+}>('composer')
 
 /** Puts back an unsent message with its attachments; releases them if newer text replaced it. */
 function restoreDraft(submission: ChatSubmission): void {
@@ -100,6 +107,25 @@ const agentName = computed(() => {
   const agentId = providerID.value.replace('acp:', '')
   return ACP_AGENTS.find((a) => a.id === agentId)?.name ?? agentId
 })
+const acpAgentId = computed(() =>
+  providerID.value.startsWith('acp:') ? providerID.value.replace('acp:', '') : null
+)
+/** An ACP agent runs its own skills and commands; the built-in chat and Pi run the user's skills. */
+const commandItems = computed<ChatCommandItem[]>(() => {
+  const agentId = acpAgentId.value
+  if (agentId) return agentCommandItems(agentCommands.value[agentId] ?? [])
+  return skillCommandItems(enabledSkills.value)
+})
+const commandHeading = computed(() =>
+  acpAgentId.value ? ai.value.chatAgentCommands({ agent: agentName.value }) : ai.value.chatSkills
+)
+
+const commandsEmpty = computed(() =>
+  acpAgentId.value
+    ? ai.value.chatAgentCommandsEmpty({ agent: agentName.value })
+    : ai.value.chatSkillsEmpty
+)
+
 const isCustomProvider = computed(
   () => providerID.value === 'openai-compatible' || providerID.value === 'anthropic-compatible'
 )
@@ -202,6 +228,14 @@ const selectedProfileName = computed(
       >
         <icon-lucide-image-plus class="size-4" />
       </IconButton>
+      <ChatCommandMenu
+        :items="commandItems"
+        :heading="commandHeading"
+        :empty="commandsEmpty"
+        :disabled="isStreaming"
+        @open="acpAgentId || refreshSkills()"
+        @pick="composer?.insertCommand($event)"
+      />
     </template>
     <template #model>
       <div class="@container flex min-w-0 items-center">

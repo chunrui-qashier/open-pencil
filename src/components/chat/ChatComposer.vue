@@ -2,7 +2,7 @@
 import { useTextareaAutosize } from '@vueuse/core'
 import type { ChatStatus } from 'ai'
 import { TooltipProvider } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
 import { useI18n } from '@open-pencil/vue/i18n'
 
@@ -45,7 +45,16 @@ function restoreDraft(text: string): boolean {
   triggerResize()
   return true
 }
-defineExpose({ restoreDraft })
+/** Starts the message with a command, such as `/skill:grid `, in place of one already there. */
+function insertCommand(command: string): void {
+  input.value = command + input.value.replace(/^\/\S*\s*/, '')
+  triggerResize()
+  const element = textarea.value
+  if (!element) return
+  element.focus()
+  void nextTick(() => element.setSelectionRange(element.value.length, element.value.length))
+}
+defineExpose({ restoreDraft, insertCommand })
 </script>
 <template>
   <TooltipProvider>
