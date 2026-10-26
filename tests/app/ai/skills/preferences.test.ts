@@ -8,7 +8,7 @@ import {
 
 import { skillFixture } from '#tests/helpers/chat/skills'
 
-const none: SkillPreferences = { sources: {}, skills: {}, trustedFolders: {} }
+const none: SkillPreferences = { sources: {}, skills: {}, trustedFolders: {}, pickedSources: {} }
 /** Coding agents' folders switched on, as after picking one of their skills. */
 const homeOn: SkillPreferences = { ...none, sources: { agents: true, claude: true } }
 
@@ -59,5 +59,8 @@ describe('enabledSkillsFrom', () => {
     const picked = withPickedSkills(none, [grid, release, review], new Set(['agents/grid']))
     expect(enabledSkillsFrom([grid, release, review], picked)).toEqual([grid])
     expect(picked.sources).toEqual({ agents: true })
+    // A skill installed in that folder later was never picked, so it stays off.
+    const later = skillFixture({ name: 'later' })
+    expect(enabledSkillsFrom([grid, later], picked)).toEqual([grid])
   })
 })

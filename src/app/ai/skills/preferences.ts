@@ -6,12 +6,14 @@ import type { Skill, SkillSourceID } from './types'
 const skillPreferencesSchema = v.object({
   sources: v.optional(v.record(v.string(), v.boolean()), {}),
   skills: v.optional(v.record(v.string(), v.boolean()), {}),
-  trustedFolders: v.optional(v.record(v.string(), v.boolean()), {})
+  trustedFolders: v.optional(v.record(v.string(), v.boolean()), {}),
+  pickedSources: v.optional(v.record(v.string(), v.boolean()), {})
 })
 
 /**
  * The sources and skills the user turned on or off, and the skills folders near documents the
- * user trusts, where everything else is off.
+ * user trusts, where everything else is off. A source in `pickedSources` was turned on for the
+ * skills picked from it, so a skill that appears there later stays off until picked too.
  */
 export type SkillPreferences = v.InferOutput<typeof skillPreferencesSchema>
 
@@ -19,12 +21,14 @@ const storedPreferencesSchema = v.pipe(v.string(), v.parseJson(), skillPreferenc
 
 export const skillPreferences = useLocalStorage<SkillPreferences>(
   'open-pencil:ai:skills',
-  { sources: {}, skills: {}, trustedFolders: {} },
+  { sources: {}, skills: {}, trustedFolders: {}, pickedSources: {} },
   {
     serializer: {
       read: (raw) => {
         const result = v.safeParse(storedPreferencesSchema, raw)
-        return result.success ? result.output : { sources: {}, skills: {}, trustedFolders: {} }
+        return result.success
+          ? result.output
+          : { sources: {}, skills: {}, trustedFolders: {}, pickedSources: {} }
       },
       write: JSON.stringify
     }
@@ -69,19 +73,22 @@ export function withPickedSkills(
 ): SkillPreferences {
   const sources = { ...preferences.sources }
   const skills = { ...preferences.skills }
+  const pickedSources = { ...preferences.pickedSources }
   for (const skill of offered) {
     const key = skillPreferenceKey(skill)
     skills[key] = picked.has(key)
-    if (picked.has(key)) sources[skill.source] = true
+    if (!picked.has(key)) continue
+    sources[skill.source] = true
+    pickedSources[skill.source] = true
   }
-  return { ...preferences, sources, skills }
+  return { ...preferences, sources, skills, pickedSources }
 }
 
 export function isSkillEnabled(skill: Skill, preferences: SkillPreferences): boolean {
   return (
     isSkillSourceEnabled(skill.source, preferences) &&
     (skill.skillsFolder === undefined || isSkillsFolderTrusted(skill.skillsFolder, preferences)) &&
-    (preferences.skills[skillPreferenceKey(skill)] ?? true)
+    (preferences.skills[skillPreferenceKey(skill)] ?? !preferences.pickedSources[skill.source])
   )
 }
 

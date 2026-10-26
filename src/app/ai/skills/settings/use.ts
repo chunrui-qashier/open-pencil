@@ -128,11 +128,13 @@ export function useSkillsSettings() {
     }
   }
 
+  /** The whole source, every skill in it included, as against the skills picked in AI setup. */
   function setSourceEnabled(source: SkillSourceID, enabled: boolean) {
     const preferences = skillPreferences.value
     skillPreferences.value = {
       ...preferences,
-      sources: { ...preferences.sources, [source]: enabled }
+      sources: { ...preferences.sources, [source]: enabled },
+      pickedSources: { ...preferences.pickedSources, [source]: false }
     }
   }
 

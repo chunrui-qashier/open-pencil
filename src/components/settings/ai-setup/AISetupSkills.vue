@@ -24,10 +24,21 @@ const offered = computed(() =>
   foundSkills.value.skills.filter((skill) => skill.source === 'agents' || skill.source === 'claude')
 )
 const picked = ref(new Set<string>())
+/** Ticks made while the folders are read, applied over what the read finds. */
+const edits = new Map<string, boolean>()
+
+function withEdits(base: Iterable<string>): Set<string> {
+  const next = new Set(base)
+  for (const [key, on] of edits) {
+    if (on) next.add(key)
+    else next.delete(key)
+  }
+  return next
+}
 
 onMounted(async () => {
   await refreshSkills()
-  picked.value = new Set(
+  picked.value = withEdits(
     offered.value
       .filter((skill) => isSkillEnabled(skill, skillPreferences.value))
       .map(skillPreferenceKey)
@@ -35,10 +46,8 @@ onMounted(async () => {
 })
 
 function toggle(key: string, on: boolean) {
-  const next = new Set(picked.value)
-  if (on) next.add(key)
-  else next.delete(key)
-  picked.value = next
+  edits.set(key, on)
+  picked.value = withEdits(picked.value)
 }
 
 /** Saves the picks with the rest of the setup. */
