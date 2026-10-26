@@ -27,12 +27,22 @@ export interface HomeSkillReader {
   readFile: (dir: string, path: string) => Promise<string>
 }
 
+/** The folders in a skills folder, or none when it cannot be read. */
+export async function readSkillFolders(
+  reader: Pick<HomeSkillReader, 'folders'>,
+  root: string
+): Promise<SkillFolder[]> {
+  const result = v.safeParse(skillFoldersSchema, await reader.folders(root).catch(() => []))
+  return result.success ? result.output : []
+}
+
 /** Turns the folders one source holds into skills, and the ones that are not into problems. */
 export function skillsFromFolders(
   source: SkillSourceID,
   displayRoot: string,
   folders: readonly SkillFolder[],
-  readFile: HomeSkillReader['readFile']
+  readFile: HomeSkillReader['readFile'],
+  skillsFolder?: string
 ): SkillScan {
   const [skills, problems] = partition(
     folders.map((folder) =>
@@ -40,6 +50,7 @@ export function skillsFromFolders(
         source,
         folder: folder.name,
         location: `${displayRoot}/${folder.name}`,
+        ...(skillsFolder !== undefined && { skillsFolder }),
         skillFile: folder.skillFile,
         files: folder.files,
         readFile: (path) => readFile(folder.path, path)
@@ -54,11 +65,7 @@ export function skillsFromFolders(
 export async function readHomeSkills(home: string, reader: HomeSkillReader): Promise<SkillScan> {
   const scans = await Promise.all(
     HOME_SKILL_SOURCES.map(async ({ id, folder }) => {
-      const result = v.safeParse(
-        skillFoldersSchema,
-        await reader.folders([home, ...folder].join('/')).catch(() => [])
-      )
-      const folders = result.success ? result.output : []
+      const folders = await readSkillFolders(reader, [home, ...folder].join('/'))
       return skillsFromFolders(id, `~/${folder.join('/')}`, folders, reader.readFile)
     })
   )

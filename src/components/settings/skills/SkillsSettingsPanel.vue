@@ -29,6 +29,9 @@ const messages = useSkillMessages()
 const skills = useSkillsSettings()
 const { groups, loading, uploading, uploadFailure, selected, detailOpen } = skills
 const deleteOpen = ref(false)
+const trustOpen = ref(false)
+/** The folder near the document the person is asked to trust; kept while the dialog closes. */
+const trusting = ref<SkillSourceGroup | null>(null)
 const removing = ref(false)
 
 useSettingsFormGuard(
@@ -52,6 +55,7 @@ fileDialog.onChange((files) => {
 })
 
 function sourceTitle(group: SkillSourceGroup): string {
+  if (group.source === 'project') return ai.value.skillsProjectSource
   if (group.source === 'agents') return ai.value.skillsAgentsSource
   if (group.source === 'claude') return ai.value.skillsClaudeSource
   return ai.value.skillsUploadedSource
@@ -59,9 +63,28 @@ function sourceTitle(group: SkillSourceGroup): string {
 
 function sourceDescription(group: SkillSourceGroup): string {
   const folder = group.folder ?? ''
+  if (group.source === 'project') {
+    return group.enabled
+      ? ai.value.skillsProjectSourceTrusted({ folder })
+      : ai.value.skillsProjectSourceDescription({ folder })
+  }
   if (group.source === 'agents') return ai.value.skillsAgentsSourceDescription({ folder })
   if (group.source === 'claude') return ai.value.skillsClaudeSourceDescription({ folder })
   return ai.value.skillsUploadedSourceDescription
+}
+
+const trustDescription = computed(() =>
+  ai.value.skillsTrustDescription({ folder: trusting.value?.folder ?? '' })
+)
+
+function askTrust(group: SkillSourceGroup) {
+  trusting.value = group
+  trustOpen.value = true
+}
+
+function trust() {
+  if (trusting.value?.trustPath) skills.setFolderTrusted(trusting.value.trustPath, true)
+  trustOpen.value = false
 }
 
 const deleteDescription = computed(() =>
@@ -93,11 +116,7 @@ async function remove() {
     </template>
     <SettingsPage>
       <div class="flex flex-col gap-6" :aria-busy="loading">
-        <SettingsSection
-          v-for="group in groups"
-          :key="group.source"
-          :data-skill-source="group.source"
-        >
+        <SettingsSection v-for="group in groups" :key="group.key" :data-skill-source="group.source">
           <template #title>{{ sourceTitle(group) }}</template>
           <template #description>{{ sourceDescription(group) }}</template>
           <template #actions>
@@ -110,6 +129,17 @@ async function remove() {
               <template #leading><icon-lucide-upload class="size-3.5" /></template>
               {{ ai.skillsUpload }}
             </AppButton>
+            <AppButton
+              v-else-if="group.trustPath && group.enabled"
+              variant="outline"
+              @click="skills.setFolderTrusted(group.trustPath, false)"
+            >
+              {{ ai.skillsStopTrusting }}
+            </AppButton>
+            <AppButton v-else-if="group.trustPath" variant="outline" @click="askTrust(group)">
+              <template #leading><icon-lucide-shield-check class="size-3.5" /></template>
+              {{ ai.skillsTrustFolder }}
+            </AppButton>
             <AppButton v-else variant="outline" :loading="loading" @click="skills.reload">
               <template #leading><icon-lucide-refresh-cw class="size-3.5" /></template>
               {{ common.refresh }}
@@ -121,7 +151,7 @@ async function remove() {
             :heading="ai.skillsUploadFailed"
             :description="messages.uploadFailure(uploadFailure)"
           />
-          <SettingsGroup v-if="group.folder">
+          <SettingsGroup v-if="group.folder && !group.trustPath">
             <SettingsRow as="label" :label="ai.skillsUseSource">
               <AppSwitch
                 :model-value="group.enabled"
@@ -149,6 +179,23 @@ async function remove() {
       </div>
     </SettingsPage>
   </PanelDrillIn>
+  <AppAlertDialogRoot v-model:open="trustOpen">
+    <AppDialogHeader
+      :heading="ai.skillsTrustTitle"
+      :description="trustDescription"
+      :show-close="false"
+    />
+    <AppDialogFooter>
+      <AlertDialogCancel as-child>
+        <AppButton>{{ common.cancel }}</AppButton>
+      </AlertDialogCancel>
+      <AlertDialogAction as-child>
+        <AppButton color="primary" variant="solid" @click="trust">
+          {{ ai.skillsTrustFolder }}
+        </AppButton>
+      </AlertDialogAction>
+    </AppDialogFooter>
+  </AppAlertDialogRoot>
   <AppAlertDialogRoot v-model:open="deleteOpen">
     <AppDialogHeader
       :heading="ai.skillsDelete"

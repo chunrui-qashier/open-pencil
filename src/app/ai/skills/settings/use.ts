@@ -5,12 +5,14 @@ import { IS_TAURI } from '@open-pencil/core/constants'
 import {
   enabledSkills,
   foundSkills,
+  projectSkillsFolders,
   refreshSkills,
   removeUploadedSkill,
   uploadSkill
 } from '../library'
 import {
   isSkillEnabled,
+  isSkillsFolderTrusted,
   isSkillSourceEnabled,
   skillPreferenceKey,
   skillPreferences
@@ -24,6 +26,8 @@ export interface SkillListEntry {
   enabled: boolean
   /** On, but another source's skill with the same name is offered instead. */
   shadowed: boolean
+  /** Off because its folder is near the document and not trusted yet. */
+  untrusted: boolean
 }
 
 /** The skill the details show, with whether its source is on. */
@@ -32,21 +36,22 @@ export interface SelectedSkill extends SkillListEntry {
 }
 
 export interface SkillSourceGroup {
+  key: string
   source: SkillSourceID
   /** The folder it reads, as the user sees it; null for uploads. */
   folder: string | null
+  /** On for the chat: switched on, or, for a folder near the document, trusted. */
   enabled: boolean
+  /** The path of a folder near the document, which the user trusts instead of switching on. */
+  trustPath: string | null
   skills: SkillListEntry[]
   problems: SkillProblem[]
 }
 
-/** Uploads exist everywhere; the folders other agents keep are read only on the desktop. */
-const SOURCES: readonly { source: SkillSourceID; folder: string | null }[] = [
-  { source: 'openpencil', folder: null },
-  ...(IS_TAURI
-    ? HOME_SKILL_SOURCES.map(({ id, folder }) => ({ source: id, folder: `~/${folder.join('/')}` }))
-    : [])
-]
+/** The folders other agents keep, read only on the desktop. */
+const HOME_SOURCES: readonly { source: SkillSourceID; folder: string }[] = IS_TAURI
+  ? HOME_SKILL_SOURCES.map(({ id, folder }) => ({ source: id, folder: `~/${folder.join('/')}` }))
+  : []
 
 export function useSkillsSettings() {
   const loading = ref(true)
@@ -59,18 +64,49 @@ export function useSkillsSettings() {
   const groups = computed<SkillSourceGroup[]>(() => {
     const preferences = skillPreferences.value
     const offered = new Set(enabledSkills.value)
-    return SOURCES.map(({ source, folder }) => ({
-      source,
-      folder,
-      enabled: isSkillSourceEnabled(source, preferences),
-      skills: foundSkills.value.skills
-        .filter((skill) => skill.source === source)
-        .map((skill) => {
-          const enabled = isSkillEnabled(skill, preferences)
-          return { skill, enabled, shadowed: enabled && !offered.has(skill) }
-        }),
-      problems: foundSkills.value.problems.filter((problem) => problem.source === source)
-    }))
+    const { skills, problems } = foundSkills.value
+    const group = (
+      base: Pick<SkillSourceGroup, 'key' | 'source' | 'folder' | 'enabled' | 'trustPath'>,
+      belongs: (entry: Skill | SkillProblem) => boolean
+    ): SkillSourceGroup => ({
+      ...base,
+      skills: skills.filter(belongs).map((skill) => {
+        const enabled = isSkillEnabled(skill, preferences)
+        const untrusted =
+          skill.skillsFolder !== undefined &&
+          !isSkillsFolderTrusted(skill.skillsFolder, preferences)
+        return { skill, enabled, shadowed: enabled && !offered.has(skill), untrusted }
+      }),
+      problems: problems.filter(belongs)
+    })
+    const source = (id: SkillSourceID, folder: string | null) =>
+      group(
+        {
+          key: id,
+          source: id,
+          folder,
+          enabled: isSkillSourceEnabled(id, preferences),
+          trustPath: null
+        },
+        (entry) => entry.source === id
+      )
+    // Uploads, the document's folders, then the user's: the order a repeated name resolves in.
+    return [
+      source('openpencil', null),
+      ...projectSkillsFolders.value.map(({ path, location }) =>
+        group(
+          {
+            key: path,
+            source: 'project',
+            folder: location,
+            enabled: isSkillsFolderTrusted(path, preferences),
+            trustPath: path
+          },
+          (entry) => entry.skillsFolder === path
+        )
+      ),
+      ...HOME_SOURCES.map(({ source: id, folder }) => source(id, folder))
+    ]
   })
 
   const selected = computed<SelectedSkill | null>(() => {
@@ -97,6 +133,14 @@ export function useSkillsSettings() {
     skillPreferences.value = {
       ...preferences,
       sources: { ...preferences.sources, [source]: enabled }
+    }
+  }
+
+  function setFolderTrusted(path: string, trusted: boolean) {
+    const preferences = skillPreferences.value
+    skillPreferences.value = {
+      ...preferences,
+      trustedFolders: { ...preferences.trustedFolders, [path]: trusted }
     }
   }
 
@@ -153,6 +197,7 @@ export function useSkillsSettings() {
     closed,
     reload,
     setSourceEnabled,
+    setFolderTrusted,
     setSkillEnabled,
     upload,
     remove

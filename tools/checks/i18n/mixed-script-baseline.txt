@@ -599,3 +599,5 @@ zh-cn:ai.skillErrorNoFrontmatter
 zh-cn:ai.skillErrorInvalidFrontmatter
 zh-cn:ai.skillErrorNoDescription
 zh-cn:ai.skillErrorNoName
+ja:ai.skillsTrustDescription
+zh-cn:ai.skillsTrustDescription

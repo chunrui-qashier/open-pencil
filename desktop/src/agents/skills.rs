@@ -142,6 +142,41 @@ pub fn read_skill_folder_file(dir: &Path, path: &str) -> Result<String, String> 
     read_bounded(&target, MAX_FILE_BYTES)
 }
 
+/// The skills folders a document's folder sees, nearest first: `.agents/skills` and
+/// `.claude/skills` in it and each folder above, up to the repository root (the folder with
+/// `.git`). The walk stops below `home`, whose own folders are read as the user's skills, and
+/// at the file system's root.
+pub fn project_skill_roots(dir: &Path, home: Option<&Path>) -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    if !dir.is_absolute() {
+        return roots;
+    }
+    for folder in dir.ancestors() {
+        if home.is_some_and(|home| folder == home) || folder.parent().is_none() {
+            break;
+        }
+        for agent in [".agents", ".claude"] {
+            let root = folder.join(agent).join("skills");
+            if root.is_dir() {
+                roots.push(root);
+            }
+        }
+        if folder.join(".git").exists() {
+            break;
+        }
+    }
+    roots
+}
+
+#[tauri::command]
+pub async fn project_skill_folders(dir: PathBuf) -> Result<Vec<PathBuf>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        project_skill_roots(&dir, std::env::home_dir().as_deref())
+    })
+    .await
+    .map_err(|_| "Could not look for skills folders.".to_owned())
+}
+
 #[tauri::command]
 pub async fn skill_folders(root: PathBuf) -> Result<Vec<SkillFolder>, String> {
     tauri::async_runtime::spawn_blocking(move || read_skill_folders(&root))
@@ -260,6 +295,34 @@ mod tests {
         assert!(read_skill_folder_file(&dir, "/etc/hosts").is_err());
         assert!(read_skill_folder_file(&dir, ".hidden").is_err());
         assert!(read_skill_folder_file(&root.0, "secret.txt").is_err());
+    }
+
+    #[test]
+    fn finds_skills_folders_up_to_the_repository_root() {
+        let scratch = Scratch::new();
+        let base = scratch.0.parent().unwrap().parent().unwrap().to_path_buf();
+        let repo = base.join("repo");
+        let docs = repo.join("design").join("docs");
+        fs::create_dir_all(&docs).unwrap();
+        fs::create_dir_all(repo.join(".git")).unwrap();
+        fs::create_dir_all(repo.join(".claude/skills")).unwrap();
+        fs::create_dir_all(repo.join("design/.agents/skills")).unwrap();
+
+        assert_eq!(
+            project_skill_roots(&docs, None),
+            vec![
+                repo.join("design/.agents/skills"),
+                repo.join(".claude/skills")
+            ]
+        );
+        // The walk stops at the repository: `base` has a skills folder from `Scratch`.
+        assert!(!project_skill_roots(&docs, None).contains(&scratch.0));
+        // Home's own folders are the user's skills, not the document's.
+        assert_eq!(
+            project_skill_roots(&docs, Some(&repo.join("design"))),
+            Vec::<PathBuf>::new()
+        );
+        assert!(project_skill_roots(Path::new("relative/dir"), None).is_empty());
     }
 
     #[cfg(unix)]

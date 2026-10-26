@@ -26,6 +26,7 @@ const messages = useSkillMessages()
 const skill = computed(() => entry.skill)
 const uploaded = computed(() => skill.value.source === 'openpencil')
 const useDescription = computed(() => {
+  if (entry.untrusted) return ai.value.skillsFolderUntrusted
   if (!entry.sourceEnabled) return ai.value.skillsSourceOff
   if (entry.shadowed) return ai.value.skillsShadowed
   return ai.value.skillsUseDescription

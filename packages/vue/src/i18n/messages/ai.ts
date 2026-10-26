@@ -414,6 +414,18 @@ export const aiMessageDefaults = {
   skillsUploadedSource: 'Uploaded',
   skillsUploadedSourceDescription:
     'Skills the AI chat loads when a request matches their description. Upload a ZIP of a skill’s folder or a SKILL.md.',
+  skillsProjectSource: 'Next to this document',
+  skillsProjectSourceDescription: params(
+    'Read from {folder}. Skills here are off until you trust the folder.'
+  ),
+  skillsProjectSourceTrusted: params('Read from {folder}, which you trust.'),
+  skillsTrustFolder: 'Trust folder',
+  skillsStopTrusting: 'Stop trusting',
+  skillsTrustTitle: 'Trust this folder?',
+  skillsTrustDescription: params(
+    'Skills in {folder} give the AI chat instructions it follows. Trust a folder only if you know where its skills come from.'
+  ),
+  skillsFolderUntrusted: 'Trust its folder to use this skill.',
   skillsAgentsSource: 'Shared agent skills',
   skillsAgentsSourceDescription: params(
     'Read from {folder}, where pi, Codex, Gemini CLI, Cursor, and other agents install skills.'
@@ -439,6 +451,7 @@ export const aiMessageDefaults = {
   skillsUseDescription: 'The AI chat lists it and loads its instructions when a request matches.',
   skillsSourceOff: 'Skills from this folder are turned off.',
   skillsNotUsed: 'Not used',
+  skillsNotTrusted: 'Not trusted',
   skillsShadowed: 'A skill with the same name from a source above is used instead.',
   skillWarningPlainFrontmatter:
     'The frontmatter is not valid YAML, so it was read line by line. Quote values that contain “: ”.',

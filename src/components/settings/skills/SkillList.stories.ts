@@ -29,10 +29,21 @@ const entries: SkillListEntry[] = [
       'Check a layout against the brand guide: colors, type scale, spacing, and logo clear space. Use when reviewing or polishing marketing pages before they ship.'
     ),
     enabled: true,
-    shadowed: false
+    shadowed: false,
+    untrusted: false
   },
-  { skill: skill('grid', 'Lay out pages on an eight-point grid.'), enabled: true, shadowed: true },
-  { skill: skill('pr-review', 'Review GitHub pull requests.'), enabled: false, shadowed: false }
+  {
+    skill: skill('grid', 'Lay out pages on an eight-point grid.'),
+    enabled: true,
+    shadowed: true,
+    untrusted: false
+  },
+  {
+    skill: skill('pr-review', 'Review GitHub pull requests.'),
+    enabled: false,
+    shadowed: false,
+    untrusted: false
+  }
 ]
 
 const meta = {

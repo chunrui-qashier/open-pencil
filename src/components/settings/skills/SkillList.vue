@@ -13,6 +13,7 @@ const ai = useAIMessages()
 const common = useCommonMessages()
 
 function status(entry: SkillListEntry): string {
+  if (entry.untrusted) return ai.value.skillsNotTrusted
   if (entry.shadowed) return ai.value.skillsNotUsed
   return entry.enabled ? common.value.enabled : common.value.disabled
 }

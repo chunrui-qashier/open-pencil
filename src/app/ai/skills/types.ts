@@ -10,8 +10,11 @@ export interface SkillDefinition {
   userInvocable: boolean
 }
 
-/** Where skills come from: uploaded to OpenPencil, the shared Agent Skills folder, Claude Code's. */
-export type SkillSourceID = 'openpencil' | 'agents' | 'claude'
+/**
+ * Where skills come from: uploaded to OpenPencil, the folders around the open document, the
+ * shared Agent Skills folder, Claude Code's.
+ */
+export type SkillSourceID = 'openpencil' | 'project' | 'agents' | 'claude'
 
 /** Departures from the Agent Skills specification that do not stop a skill loading. */
 export type SkillWarning =
@@ -33,6 +36,8 @@ export interface Skill extends SkillDefinition {
   source: SkillSourceID
   /** Where the skill was found, as the user sees it. */
   location: string
+  /** The skills folder it was found in, for skills that need it trusted first. */
+  skillsFolder?: string
   /** Files in the skill's folder other than SKILL.md, relative to the folder. */
   files: readonly string[]
   readFile: (path: string) => Promise<string>
@@ -44,6 +49,7 @@ export interface SkillProblem {
   source: SkillSourceID
   folder: string
   location: string
+  skillsFolder?: string
   error: SkillParseError
 }
 
