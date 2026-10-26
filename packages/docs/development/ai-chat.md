@@ -18,6 +18,10 @@ Every message first reads the skills again (`library.ts`): those uploaded in Set
 
 A message that starts with `/skill:name` runs that skill, as in pi: the request carries the skill's instructions in a note after the text (`appendSkillContext`), which the transcript leaves out, so every agent follows it without looking it up. Pi gets the enabled skills the model may load, with their text files, in its session configuration (`skills/harness.ts`), and its harness writes them into Pi's own skills folder; files past a 384 KB budget, counted in UTF-8 bytes, are left out so the configuration stays inside the harness protocol's line limit. ACP agents keep their own skills.
 
+## References
+
+Messages name layers, pages, and skills with Markdown links in the `openpencil:` scheme, `[Hero](openpencil://node/12:34)` (`chat/references/link.ts`), in both directions: the composer inserts them and the system prompt asks the model to cite what it touched the same way. The composer is a CodeMirror field (`components/chat/composer/`), built like the variable formula field: `@` completes layers (the current page's first, then other loaded pages'), pages, and skills (`references/candidates.ts`), and `/` at the start of a message completes the skills the user can run, or an ACP agent's own commands from `available_commands_update` (`agents/acp/commands.ts`). A reference shows as a chip that edits as one unit. The transcript renders the same chip (`ChatReferenceChip`): replies get references rewritten to an inline `chat-reference` component before Markdown renders them, so other links keep the renderer's own handling, and the user's text is split around them. A chip follows renames, shows its written label once its target is gone, and on click shows the layer on its page, switches to the page, or opens the skill in Settings › Skills; a conversation from another document resolves nothing by ID.
+
 ## A run
 
 `transports/tool-loop.ts` starts a run (`reply/run.ts`) when the message is sent, before the model is reached, so a Stop at any point ends a run that exists. A `Run` belongs to one reply and holds:

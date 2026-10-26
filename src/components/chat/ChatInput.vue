@@ -1,20 +1,25 @@
 <script setup lang="ts">
-import { computed, useTemplateRef } from 'vue'
+import { computed, onMounted, useTemplateRef } from 'vue'
 
 import { ACP_AGENTS } from '@open-pencil/core/constants'
 import { useSelectionState } from '@open-pencil/vue/editor/selection-state'
 import { useI18n } from '@open-pencil/vue/i18n'
 
+import { agentCommands } from '@/app/ai/agents/acp/commands'
 import { revokeImagePreviewURL } from '@/app/ai/attachment/image/prepare'
 import { MAX_IMAGE_ATTACHMENTS } from '@/app/ai/attachment/image/types'
+import { commandCandidates, referenceCandidates } from '@/app/ai/chat/references/candidates'
 import type { ChatSubmission } from '@/app/ai/chat/submission/types'
 import { useAIChat } from '@/app/ai/chat/use'
 import { designModelProfile } from '@/app/ai/models'
+import { enabledSkills, refreshSkills } from '@/app/ai/skills/library'
+import { getActiveEditorStoreOrNull } from '@/app/editor/active-store'
 import { openSettingsDialog } from '@/app/settings/dialog'
 import ChatCreditBalance from '@/components/chat/ChatCreditBalance.vue'
 import ChatNodePreview from '@/components/chat/ChatNodePreview.vue'
 import ChatProfileSelect from '@/components/chat/ChatProfileSelect.vue'
 import ChatThinkingSelect from '@/components/chat/ChatThinkingSelect.vue'
+import { commandCompletion, referenceCompletion } from '@/components/chat/composer/complete'
 import { useAttachmentDrafts } from '@/components/chat/input/useAttachments'
 import IconButton from '@/components/ui/button/IconButton.vue'
 import AppDropOverlay from '@/components/ui/feedback/AppDropOverlay.vue'
@@ -63,6 +68,33 @@ const {
 } = attachments
 
 const composer = useTemplateRef<{ restoreDraft: (text: string) => boolean }>('composer')
+
+/** An ACP agent runs its own skills and commands; the built-in chat and Pi run the user's skills. */
+function acpAgentId(): string | null {
+  return providerID.value.startsWith('acp:') ? providerID.value.slice('acp:'.length) : null
+}
+const sections = () => ({
+  node: ai.value.chatReferenceLayers,
+  page: ai.value.chatReferencePages,
+  skill: ai.value.chatReferenceSkills,
+  command: ai.value.chatReferenceCommands
+})
+const completions = [
+  commandCompletion(() => {
+    const agentId = acpAgentId()
+    return commandCandidates(
+      agentId ? (agentCommands.value[agentId] ?? []) : null,
+      enabledSkills.value
+    )
+  }, sections),
+  referenceCompletion(() => {
+    const store = getActiveEditorStoreOrNull()
+    if (!store) return []
+    return referenceCandidates(store.graph, store.state.currentPageId, enabledSkills.value)
+  }, sections)
+]
+// Skills installed since the app started are offered without opening Settings first.
+onMounted(() => void refreshSkills())
 
 /** Puts back an unsent message with its attachments; releases them if newer text replaced it. */
 function restoreDraft(submission: ChatSubmission): void {
@@ -125,6 +157,7 @@ const selectedProfileName = computed(
     ref="composer"
     :status="status"
     :disabled="disabled"
+    :completions="completions"
     @submit="emit('submit', takeSubmission($event))"
     @stop="emit('stop')"
     @paste="handlePaste"

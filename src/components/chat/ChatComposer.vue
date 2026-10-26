@@ -1,14 +1,25 @@
 <script setup lang="ts">
-import { useTextareaAutosize } from '@vueuse/core'
+import type { CompletionSource } from '@codemirror/autocomplete'
 import type { ChatStatus } from 'ai'
 import { TooltipProvider } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 
 import { useI18n } from '@open-pencil/vue/i18n'
 
+import { useChatEditor } from '@/components/chat/composer/useChatEditor'
 import IconButton from '@/components/ui/button/IconButton.vue'
 import InputGroup from '@/components/ui/input/InputGroup.vue'
-const { status, disabled = false } = defineProps<{ status: ChatStatus; disabled?: boolean }>()
+
+const {
+  status,
+  disabled = false,
+  completions = []
+} = defineProps<{
+  status: ChatStatus
+  disabled?: boolean
+  /** What `@` and `/` offer; read once, when the field mounts. */
+  completions?: CompletionSource[]
+}>()
 const emit = defineEmits<{
   submit: [text: string]
   stop: []
@@ -16,36 +27,41 @@ const emit = defineEmits<{
   paste: [event: ClipboardEvent]
 }>()
 const { ai } = useI18n()
-const textarea = ref<HTMLTextAreaElement>()
-const input = ref('')
-const { triggerResize } = useTextareaAutosize({ element: textarea, input, maxHeight: 160 })
 const isStreaming = computed(() => disabled || status === 'streaming' || status === 'submitted')
-function handleInputKeydown(event: KeyboardEvent) {
-  if (event.code !== 'Enter' || event.shiftKey || event.isComposing) return
-  event.preventDefault()
-  const target = event.currentTarget
-  if (target instanceof HTMLElement) target.closest('form')?.requestSubmit()
+const host = useTemplateRef<HTMLDivElement>('host')
+const editor = useChatEditor(host, {
+  label: () => ai.value.describeChange,
+  placeholder: () => ai.value.describeChange,
+  editable: () => !isStreaming.value,
+  attributes: { 'data-test-id': 'chat-input' },
+  completions,
+  onSubmit: submit
+})
+const { text } = editor
+
+function submit() {
+  if (isStreaming.value) return
+  const message = text.value.trim()
+  if (!message) return
+  emit('submit', message)
+  editor.setText('')
 }
+
 function handleSubmit(event: Event) {
   event.preventDefault()
-  if (isStreaming.value) return
-  const text = input.value.trim()
-  if (!text) return
-  emit('submit', text)
-  input.value = ''
-  triggerResize()
+  submit()
 }
+
 /**
  * Puts back a message that could not be sent, unless something new was typed meanwhile.
  * Returns whether it did.
  */
-function restoreDraft(text: string): boolean {
-  if (input.value.trim()) return false
-  input.value = text
-  triggerResize()
+function restoreDraft(draft: string): boolean {
+  if (text.value.trim()) return false
+  editor.setText(draft)
   return true
 }
-defineExpose({ restoreDraft })
+defineExpose({ restoreDraft, insert: editor.insert, focus: editor.focus })
 </script>
 <template>
   <TooltipProvider>
@@ -54,19 +70,7 @@ defineExpose({ restoreDraft })
         <InputGroup :disabled="isStreaming">
           <template v-if="$slots.attachment" #attachment><slot name="attachment" /></template>
 
-          <textarea
-            ref="textarea"
-            v-model="input"
-            data-test-id="chat-input"
-            :placeholder="ai.describeChange"
-            :disabled="isStreaming"
-            rows="2"
-            :aria-label="ai.describeChange"
-            class="block min-h-12 w-full resize-none overflow-y-auto bg-transparent px-3 pt-2.5 pb-1 text-xs leading-relaxed text-surface outline-none placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60"
-            @keydown="handleInputKeydown"
-            @copy.stop
-            @cut.stop
-          />
+          <div ref="host" class="min-w-0" @copy.stop @cut.stop />
 
           <template #leading><slot name="leading" /></template>
 
@@ -98,7 +102,7 @@ defineExpose({ restoreDraft })
               type="submit"
               data-test-id="chat-send-button"
               class="bg-accent text-on-accent hover:bg-accent/90 hover:text-on-accent"
-              :disabled="!input.trim()"
+              :disabled="!text.trim()"
             >
               <icon-lucide-send class="size-3.5" />
             </IconButton>
