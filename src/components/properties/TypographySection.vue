@@ -93,7 +93,7 @@ function picked<T>(value: MixedValue<T>): T | '' {
           :label="fonts.settingsTitle"
           size="xs"
           data-test-id="font-settings-trigger"
-          @click="openSettingsDialog('fonts')"
+          @click="openSettingsDialog('editor', 'fonts')"
         >
           <icon-lucide-settings class="size-3.5" />
         </IconButton>

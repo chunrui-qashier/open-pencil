@@ -79,7 +79,7 @@ Dostępne odmiany zależą od rodziny, na przykład Regular, Medium, Bold i Blac
 - **Przeglądarka:** czcionki systemowe są dostępne w Chrome i Edge; katalogi internetowe wymagają aplikacji komputerowej.
 - **Pobrane czcionki:** aplikacja zapisuje pobrane odmiany do ponownego użycia na tym komputerze.
 
-Dostęp do czcionek systemowych i dostawców online ustawisz w **Ustawienia › Czcionki**, które otwiera koło zębate obok rodziny czcionek; w aplikacji desktopowej strona zarządza też pobranymi czcionkami i pakietami zastępczymi.
+Dostęp do czcionek systemowych i dostawców online ustawisz w **Ustawienia › Edytor**, które otwiera koło zębate obok rodziny czcionek; w aplikacji desktopowej strona zarządza też pobranymi czcionkami i pakietami zastępczymi.
 
 ## Brakujące czcionki i zamienniki
 
