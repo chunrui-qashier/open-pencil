@@ -37,7 +37,7 @@ Las herramientas cubren lectura, creación, modificación, estructura, variables
 
 Las habilidades son carpetas con un `SKILL.md` en el formato [Agent Skills](https://agentskills.io/specification): instrucciones para un tipo de trabajo, con archivos de referencia opcionales. La IA integrada ve el nombre y la descripción de cada habilidad activa y carga sus instrucciones cuando una solicitud coincide; los scripts de una habilidad no se ejecutan.
 
-En **Ajustes → Habilidades** sube una habilidad como ZIP de su carpeta o como `SKILL.md`. En la app de escritorio también se leen `~/.agents/skills` y `~/.claude/skills`, y las carpetas `.agents/skills` y `.claude/skills` junto al documento abierto, que solo se usan tras **Confiar en la carpeta**. Empieza un mensaje con `/skill:nombre` o elige una habilidad en el menú **Habilidades y comandos** del compositor. Con agentes ACP, el menú muestra sus propios comandos.
+En **Ajustes → Habilidades** sube una habilidad como ZIP de su carpeta o como `SKILL.md`. En la app de escritorio también se leen `~/.agents/skills` y `~/.claude/skills`, y las carpetas `.agents/skills` y `.claude/skills` junto al documento abierto, que solo se usan tras **Confiar en la carpeta**. Empieza un mensaje con `/skill:nombre` para ejecutar una habilidad.
 
 ## Verificación visual
 

@@ -2,13 +2,7 @@ import { appSkillLibrary, type SkillLibrary } from './library'
 import type { Skill } from './types'
 
 /** How a message runs a skill by name, as in pi: `/skill:brand-review check the hero`. */
-export const SKILL_COMMAND_PREFIX = '/skill:'
-
 const SKILL_COMMAND = /^\/skill:([^\s]+)/
-
-export function skillCommand(name: string): string {
-  return `${SKILL_COMMAND_PREFIX}${name} `
-}
 
 /** The skills the user can run by name: those switched on that allow it. */
 export function runnableSkills(skills: readonly Skill[]): Skill[] {

@@ -48,7 +48,7 @@ Open **Settings → Skills** to see where skills come from:
 
 Everything found is on until you turn a folder or a skill off. Open a skill to switch it, read its instructions, see its files, or check warnings about how it departs from the specification. When two skills share a name, the first in that order is used.
 
-To run a skill yourself, start a message with `/skill:name`, or pick it from the **Skills and commands** menu in the composer. Pi gets the enabled skills as its own. ACP agents such as Claude Code and Codex load their own skills; for them, the menu lists the commands the agent offers once a chat has started.
+To run a skill yourself, start a message with `/skill:name`. Pi gets the enabled skills as its own. ACP agents such as Claude Code and Codex load their own skills.
 
 ## Saved Conversations
 
