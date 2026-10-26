@@ -5,9 +5,11 @@ import { simulateReadableStream } from 'ai'
 import { MockLanguageModelV4 } from 'ai/test'
 
 import type { ThinkingLevel } from '@/app/ai/models/types'
+import type { Skill } from '@/app/ai/skills/types'
 import { createToolLoopTransport } from '@/app/ai/transports/tool-loop'
 import { createEditorStore } from '@/app/editor/session/create'
 
+import { skillFixture } from '#tests/helpers/chat/skills'
 import { MOCK_USAGE } from '#tests/helpers/chat/usage'
 
 function replyModel() {
@@ -91,6 +93,44 @@ test('OpenRouter receives the level as its own reasoning option', async () => {
     expect(model.doStreamCalls[0]?.providerOptions).toEqual({
       openrouter: { reasoning: { effort: 'minimal' } }
     })
+  } finally {
+    store.dispose()
+  }
+})
+
+test('enabled skills reach the model as a listing and the tools that load them', async () => {
+  const store = createEditorStore()
+  const model = replyModel()
+  // Each message reads the skills again; the second finds none left.
+  const reads: Skill[][] = [[skillFixture()], []]
+  let enabled: Skill[] = []
+  try {
+    const transport = createToolLoopTransport({
+      store,
+      providerID: 'anthropic',
+      model,
+      effectiveModelID: 'claude-test',
+      maxOutputTokens: 100,
+      thinkingLevel: () => 'default',
+      skills: {
+        refresh: async () => {
+          enabled = reads.shift() ?? []
+        },
+        enabled: () => enabled
+      }
+    })
+    await send(transport)
+    await send(transport)
+    const [withSkills, without] = model.doStreamCalls.map((call) => ({
+      system: call.prompt.flatMap((message) =>
+        message.role === 'system' ? [message.content] : []
+      ),
+      tools: (call.tools ?? []).map((tool) => tool.name)
+    }))
+    expect(withSkills?.system.join('\n')).toContain('<name>grid</name>')
+    expect(withSkills?.tools).toEqual(expect.arrayContaining(['load_skill', 'read_skill_file']))
+    expect(without?.system.join('\n')).not.toContain('<name>grid</name>')
+    expect(without?.tools).not.toContain('load_skill')
   } finally {
     store.dispose()
   }

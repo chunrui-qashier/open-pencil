@@ -11,7 +11,17 @@ import type { RunRecorder, RunRecording } from '@/app/ai/chat/trace/recorder'
 import { reasoningCallSettings, type AIProviderOptions } from '@/app/ai/models/reasoning/settings'
 import type { ThinkingLevel } from '@/app/ai/models/types'
 import { createRunPreview } from '@/app/ai/preview/run'
-import { createAITools, currentRun, endRun, recordStep, startRun } from '@/app/ai/tools'
+import { skillCatalog } from '@/app/ai/skills/catalog'
+import { appSkillLibrary, type SkillLibrary } from '@/app/ai/skills/library'
+import { createSkillTools, SKILL_TOOL_NAMES } from '@/app/ai/skills/tools'
+import {
+  createAITools,
+  currentRun,
+  endRun,
+  recordStep,
+  startRun,
+  type AITools
+} from '@/app/ai/tools'
 import { enabledAIToolDefinitions } from '@/app/ai/tools/catalog'
 import { aiToolOverrides } from '@/app/ai/tools/preferences'
 import { recordModelStepCompleted } from '@/app/diagnostics/events'
@@ -33,6 +43,7 @@ export type ToolLoopTransportOptions = {
   diagnosticContext?: AIDiagnosticContext
   /** Records each run so a saved trace can rebuild its requests. */
   recorder?: RunRecorder
+  skills?: SkillLibrary
 }
 
 const ANTHROPIC_CACHE_CONTROL = {
@@ -79,9 +90,16 @@ export function createToolLoopTransport({
   thinkingLevel,
   onError,
   diagnosticContext = {},
-  recorder
+  recorder,
+  skills = appSkillLibrary
 }: ToolLoopTransportOptions) {
-  const tools = createAITools(store, diagnosticContext)
+  const tools: AITools = {
+    ...createAITools(store, diagnosticContext),
+    ...createSkillTools(skills.enabled)
+  }
+  // Read again for each message, so skills installed or switched off since apply to the next one.
+  let offeredSkills = skills.enabled()
+  let instructions = SYSTEM_PROMPT
   // The reply in progress; a transport sends one message at a time.
   let run = currentRun(store)
   // While JSX streams, the chat's agent moves through the elements as they appear, here and
@@ -108,6 +126,7 @@ export function createToolLoopTransport({
       const enabledNames = new Set(
         enabledAIToolDefinitions(aiToolOverrides.value).map((tool) => tool.name)
       )
+      if (offeredSkills.length > 0) for (const name of SKILL_TOOL_NAMES) enabledNames.add(name)
       preview.clear()
       // Keep the full catalog for validating history; offer only enabled tools to this request.
       const offered = Object.fromEntries(
@@ -116,6 +135,7 @@ export function createToolLoopTransport({
       recording?.offer(offered)
       return {
         ...options,
+        instructions,
         stopWhen: stepCountIs(currentRun(store).maxSteps),
         tools: offered,
         maxOutputTokens,
@@ -163,6 +183,10 @@ export function createToolLoopTransport({
       // The run starts as the message is sent, so a Stop before the model is reached ends it.
       const started = startRun(store, maxAgentSteps.value, effectiveModelID)
       run = started
+      await skills.refresh()
+      offeredSkills = skills.enabled()
+      const catalog = skillCatalog(offeredSkills)
+      instructions = catalog ? `${SYSTEM_PROMPT}\n\n${catalog}` : SYSTEM_PROMPT
       const { sessionId, runId } = diagnosticContext
       const startedRecording =
         sessionId && runId
@@ -176,7 +200,7 @@ export function createToolLoopTransport({
                 thinking: thinkingLevel(),
                 cache: cacheProviderOptions !== undefined
               },
-              instructions: SYSTEM_PROMPT,
+              instructions,
               messages: options.messages
             })
           : undefined
