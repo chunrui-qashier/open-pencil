@@ -8,7 +8,7 @@ import {
 } from '@codemirror/autocomplete'
 import { defaultKeymap, history, historyKeymap, insertNewline } from '@codemirror/commands'
 import { EditorSelection, EditorState, Prec } from '@codemirror/state'
-import { EditorView, keymap, placeholder, tooltips } from '@codemirror/view'
+import { drawSelection, EditorView, keymap, placeholder, tooltips } from '@codemirror/view'
 import { getCurrentInstance, h, render, shallowRef, type ShallowRef } from 'vue'
 
 import { useCodeMirror } from '@/components/code-editor/useCodeMirror'
@@ -63,6 +63,8 @@ export function useChatEditor(
     label: options.label,
     theme: chatComposerTheme,
     extensions: [
+      // A drawn caret is one line tall beside a placeholder that wraps; the native one spans it.
+      drawSelection(),
       history(),
       composerAppContext.of(appContext),
       referenceChips,

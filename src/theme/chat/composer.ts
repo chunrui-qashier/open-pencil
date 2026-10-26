@@ -26,6 +26,10 @@ export function chatComposerTheme(dark: boolean) {
         caretColor: 'var(--color-surface)'
       },
       '.cm-line': { padding: '0' },
+      '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--color-surface)' },
+      '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
+        backgroundColor: 'color-mix(in srgb, var(--color-accent) 22%, transparent)'
+      },
       '.cm-placeholder': { color: 'var(--color-muted)' },
       '.cm-content[aria-disabled="true"]': { opacity: '0.6', cursor: 'not-allowed' },
       ...completionListStyles,
