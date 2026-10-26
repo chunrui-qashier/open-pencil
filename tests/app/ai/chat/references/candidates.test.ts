@@ -34,6 +34,17 @@ describe('reference candidates', () => {
     ])
   })
 
+  test('the query narrows layers before the cap, so any layer can be reached', () => {
+    const graph = new SceneGraph()
+    const [page] = graph.getPages()
+    if (!page) throw new Error('Expected a page')
+    for (let index = 0; index < 600; index++)
+      graph.createNode('RECTANGLE', page.id, { name: `Box ${index}` })
+    const footer = graph.createNode('FRAME', page.id, { name: 'Footer' })
+    const found = referenceCandidates(graph, page.id, [], 'foot')
+    expect(found.map(({ reference }) => reference.id)).toEqual([footer.id])
+  })
+
   test('commands are an ACP agent’s own, or else the skills the user can run', () => {
     const skills = [skillFixture(), skillFixture({ name: 'auto', userInvocable: false })]
     expect(commandCandidates(null, skills).map((command) => command.insert)).toEqual([

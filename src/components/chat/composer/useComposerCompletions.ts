@@ -39,10 +39,10 @@ export function useComposerCompletions() {
         enabledSkills.value
       )
     }, sections),
-    referenceCompletion(() => {
+    referenceCompletion((query) => {
       const store = getActiveEditorStoreOrNull()
       if (!store) return []
-      return referenceCandidates(store.graph, store.state.currentPageId, enabledSkills.value)
+      return referenceCandidates(store.graph, store.state.currentPageId, enabledSkills.value, query)
     }, sections)
   ]
 }

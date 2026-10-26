@@ -48,7 +48,7 @@ function insertReference(link: string) {
 
 /** `@` anywhere offers layers, pages, and skills, inserted as reference links. */
 export function referenceCompletion(
-  candidates: () => readonly ReferenceCandidate[],
+  candidates: (query: string) => readonly ReferenceCandidate[],
   sections: () => ComposerSections
 ): CompletionSource {
   return (context: CompletionContext) => {
@@ -56,16 +56,18 @@ export function referenceCompletion(
     if (!typed) return null
     const at = typed.text.lastIndexOf('@')
     const names = sections()
+    // No `validFor`: the source runs again as the query grows, since it caps how many it lists.
     return {
       from: typed.from + at + 1,
-      validFor: /^[^\s@]*$/,
-      options: candidates().map(({ reference, detail, node }): ComposerCompletion => ({
-        icon: node ? sceneNodeIcon(node) : KIND_ICONS[reference.kind],
-        label: reference.label || reference.id,
-        detail: detail ?? undefined,
-        section: { name: names[reference.kind], rank: SECTION_RANK[reference.kind] },
-        apply: insertReference(referenceLink(reference))
-      }))
+      options: candidates(typed.text.slice(at + 1)).map(
+        ({ reference, detail, node }): ComposerCompletion => ({
+          icon: node ? sceneNodeIcon(node) : KIND_ICONS[reference.kind],
+          label: reference.label || reference.id,
+          detail: detail ?? undefined,
+          section: { name: names[reference.kind], rank: SECTION_RANK[reference.kind] },
+          apply: insertReference(referenceLink(reference))
+        })
+      )
     }
   }
 }

@@ -104,17 +104,23 @@ const historyOptions = computed(() => {
 const agentHistoryReadOnly = computed(
   () => !chat.value && messages.value.length > 0 && history.current.value?.backend !== 'direct'
 )
+/** Set while the conversation changes, so stopping its reply does not send what waits. */
+let queueHeld = false
 async function historyAction(action: () => Promise<unknown>) {
   const generation = ++viewGeneration
   submission.cancel()
-  clearQueuedMessages()
+  queueHeld = true
   try {
     await chat.value?.stop()
     await action()
     if (generation !== viewGeneration) return
     chat.value = null
+    // Waiting messages belong to the conversation that was left; a failed switch keeps them.
+    clearQueuedMessages()
   } catch {
     toast.error(ai.value.chatHistoryFailed)
+  } finally {
+    queueHeld = false
   }
 }
 
@@ -193,7 +199,7 @@ function sendOrQueue(message: ChatSubmission, afterWork: boolean) {
 }
 // Once a reply ends, what waited goes next, one message per reply; a failed reply keeps them.
 watch(status, (now, before) => {
-  if (now !== 'ready' || before === 'ready') return
+  if (now !== 'ready' || before === 'ready' || queueHeld) return
   const next = takeNextMessage()
   if (next) void submitMessage(next)
 })
@@ -236,6 +242,8 @@ function failureAction(failedId: string | undefined): { label: string; run: () =
 watch(
   () => [activeTab.value?.id, activeTab.value?.store.state.preparation] as const,
   async ([tabId, preparation], [previousTabId]) => {
+    // Another tab's waiting messages never go to this one, even one that opens still preparing.
+    if (tabId !== previousTabId) clearQueuedMessages()
     if (preparation) {
       viewGeneration++
       submission.cancel()
@@ -244,10 +252,7 @@ watch(
     const generation = ++viewGeneration
     const conversationId = history.current.value?.id
     submission.cancel()
-    if (tabId !== previousTabId) {
-      chat.value = null
-      clearQueuedMessages()
-    }
+    if (tabId !== previousTabId) chat.value = null
     try {
       await history.initialize()
     } catch {

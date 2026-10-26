@@ -6,7 +6,7 @@ import type { Skill } from '@/app/ai/skills/types'
 
 import type { ChatReference } from './link'
 
-/** Layers past this many are left out of `@` completions; typing more narrows the rest. */
+/** Matching layers past this many are left out of `@` completions; typing more narrows them. */
 const MAX_LAYERS = 500
 
 /** Something `@` can insert, with what to show beside it: a layer's page. */
@@ -28,14 +28,18 @@ export interface CommandCandidate {
 }
 
 /**
- * What `@` offers: layers on the current page, then on the other loaded pages, then the pages
- * themselves and the skills. Pages that have not loaded yet contribute only their name.
+ * What `@query` offers: layers whose name contains the query, on the current page and then on
+ * the other loaded pages, then the pages themselves and the skills. Pages that have not loaded
+ * yet contribute only their name.
  */
 export function referenceCandidates(
   graph: Pick<SceneGraph, 'getPages' | 'getChildren'>,
   currentPageId: string,
-  skills: readonly Skill[]
+  skills: readonly Skill[],
+  query = ''
 ): ReferenceCandidate[] {
+  const needle = query.toLowerCase()
+  const fits = (name: string) => name.toLowerCase().includes(needle)
   const pages = graph.getPages()
   const ordered = [
     ...pages.filter((page) => page.id === currentPageId),
@@ -45,27 +49,33 @@ export function referenceCandidates(
   const walk = (parentId: string, pageName: string | null) => {
     for (const child of graph.getChildren(parentId)) {
       if (layers.length >= MAX_LAYERS) return
-      layers.push({
-        reference: { kind: 'node', id: child.id, label: child.name },
-        detail: pageName,
-        node: child
-      })
+      if (fits(child.name)) {
+        layers.push({
+          reference: { kind: 'node', id: child.id, label: child.name },
+          detail: pageName,
+          node: child
+        })
+      }
       walk(child.id, pageName)
     }
   }
   for (const page of ordered) walk(page.id, page.id === currentPageId ? null : page.name)
   return [
     ...layers,
-    ...pages.map((page) => ({
-      reference: { kind: 'page' as const, id: page.id, label: page.name },
-      detail: null,
-      node: null
-    })),
-    ...skills.map((skill) => ({
-      reference: { kind: 'skill' as const, id: skill.name, label: skill.name },
-      detail: null,
-      node: null
-    }))
+    ...pages
+      .filter((page) => fits(page.name))
+      .map((page) => ({
+        reference: { kind: 'page' as const, id: page.id, label: page.name },
+        detail: null,
+        node: null
+      })),
+    ...skills
+      .filter((skill) => fits(skill.name))
+      .map((skill) => ({
+        reference: { kind: 'skill' as const, id: skill.name, label: skill.name },
+        detail: null,
+        node: null
+      }))
   ]
 }
 
