@@ -38,7 +38,7 @@ describe('skillFromArchive', () => {
       skill: {
         name: 'grid',
         skillFile: SKILL,
-        files: [{ path: 'references/spacing.md', text: '8, 16, 24' }],
+        files: [{ path: 'references/spacing.md', content: '8, 16, 24' }],
         uploadedAt: 1
       }
     })
@@ -63,6 +63,25 @@ describe('skillFromArchive', () => {
   })
 })
 
+test('refuses an archive that would unpack past its limits before inflating it', () => {
+  // Zeros deflate to almost nothing; together these declare far more than an upload may hold.
+  const zeros = new Uint8Array(1024 * 1024)
+  const files = Object.fromEntries(
+    Array.from({ length: 30 }, (_, index) => [`grid/zeros-${index}.txt`, zeros])
+  )
+  expect(skillFromArchive(archive({ 'grid/SKILL.md': SKILL, ...files }), 0)).toEqual({
+    ok: false,
+    reason: 'too-large'
+  })
+  const many = Object.fromEntries(
+    Array.from({ length: 250 }, (_, index) => [`grid/notes-${index}.md`, 'x'])
+  )
+  expect(skillFromArchive(archive({ 'grid/SKILL.md': SKILL, ...many }), 0)).toEqual({
+    ok: false,
+    reason: 'too-large'
+  })
+})
+
 describe('skillFromUpload', () => {
   test('reads a SKILL.md on its own, which must name itself', async () => {
     const upload = await skillFromUpload(new File([SKILL], 'SKILL.md'), 1)
@@ -78,7 +97,7 @@ describe('skillsFromUploads', () => {
       {
         name: 'grid',
         skillFile: SKILL,
-        files: [{ path: 'references/spacing.md', text: '8' }],
+        files: [{ path: 'references/spacing.md', content: '8' }],
         uploadedAt: 1
       }
     ])
@@ -87,4 +106,15 @@ describe('skillsFromUploads', () => {
     ])
     expect(await skills[0]?.readFile('references/spacing.md')).toBe('8')
   })
+})
+
+test('an upload named by its folder still loads when read back', () => {
+  const upload = skillFromArchive(
+    archive({ 'grid/SKILL.md': '---\ndescription: Lay out pages on a grid.\n---\nSnap to 8.' }),
+    0
+  )
+  if (!upload.ok) throw new Error('Expected the upload to be accepted')
+  const { skills, problems } = skillsFromUploads([upload.skill])
+  expect(problems).toEqual([])
+  expect(skills).toMatchObject([{ name: 'grid', warnings: ['name-from-folder'] }])
 })
