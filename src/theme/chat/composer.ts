@@ -38,6 +38,14 @@ export function chatComposerTheme(dark: boolean) {
       // Above the field, the list keeps the same gap from it as it would below.
       '.cm-tooltip.cm-tooltip-autocomplete.cm-tooltip-above': { marginTop: '-6px' },
       '.cm-completionIcon': { display: 'none' },
+      '.cm-composer-icon': {
+        display: 'inline-flex',
+        flex: 'none',
+        width: '12px',
+        height: '12px',
+        color: 'var(--color-muted)'
+      },
+      '.cm-composer-icon > svg': { width: '12px', height: '12px' },
       '.cm-completionInfo': { display: 'none' }
     },
     { dark }

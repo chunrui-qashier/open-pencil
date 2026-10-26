@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue'
+import { computed, inject, onBeforeUnmount, ref } from 'vue'
 
 import { useAIMessages } from '@open-pencil/vue/i18n'
 
@@ -41,6 +41,16 @@ const label = computed(() =>
     : ai.value.showNodeOnCanvas({ name: resolved.value.name })
 )
 
+/** Pointing at a layer's chip outlines the layer on the canvas, as the layers panel does. */
+function hover(on: boolean) {
+  const store = getActiveEditorStoreOrNull()
+  if (!store || reference.kind !== 'node' || !resolved.value.present) return
+  if (on) store.setHoveredNode(reference.id)
+  else if (store.state.hoveredNodeId === reference.id) store.setHoveredNode(null)
+}
+
+onBeforeUnmount(() => hover(false))
+
 async function open() {
   const store = getActiveEditorStoreOrNull()
   if (!store || !resolved.value.present) return
@@ -69,6 +79,8 @@ async function open() {
     :data-reference-kind="reference.kind"
     data-slot="chat-reference"
     @click="interactive && void open()"
+    @pointerenter="hover(true)"
+    @pointerleave="hover(false)"
   >
     <component
       :is="sceneNodeIcon(resolved.node)"

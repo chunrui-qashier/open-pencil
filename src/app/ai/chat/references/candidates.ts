@@ -1,4 +1,4 @@
-import type { SceneGraph } from '@open-pencil/scene-graph'
+import type { SceneGraph, SceneNode } from '@open-pencil/scene-graph'
 
 import type { AgentCommand } from '@/app/ai/agents/acp/commands'
 import { runnableSkills } from '@/app/ai/skills/invoke'
@@ -13,10 +13,14 @@ const MAX_LAYERS = 500
 export interface ReferenceCandidate {
   reference: ChatReference
   detail: string | null
+  /** A layer's node, for its icon. */
+  node: SceneNode | null
 }
 
 /** A command `/` starts a message with: a skill to run, or one of an ACP agent's commands. */
 export interface CommandCandidate {
+  /** A skill of the user's, or a command the agent offers. */
+  kind: 'skill' | 'agent'
   label: string
   detail: string
   /** The text the message starts with. */
@@ -43,7 +47,8 @@ export function referenceCandidates(
       if (layers.length >= MAX_LAYERS) return
       layers.push({
         reference: { kind: 'node', id: child.id, label: child.name },
-        detail: pageName
+        detail: pageName,
+        node: child
       })
       walk(child.id, pageName)
     }
@@ -53,11 +58,13 @@ export function referenceCandidates(
     ...layers,
     ...pages.map((page) => ({
       reference: { kind: 'page' as const, id: page.id, label: page.name },
-      detail: null
+      detail: null,
+      node: null
     })),
     ...skills.map((skill) => ({
       reference: { kind: 'skill' as const, id: skill.name, label: skill.name },
-      detail: null
+      detail: null,
+      node: null
     }))
   ]
 }
@@ -69,12 +76,14 @@ export function commandCandidates(
 ): CommandCandidate[] {
   if (agentCommands) {
     return agentCommands.map((command) => ({
+      kind: 'agent' as const,
       label: `/${command.name}`,
       detail: command.description,
       insert: `/${command.name} `
     }))
   }
   return runnableSkills(skills).map((skill) => ({
+    kind: 'skill' as const,
     label: `/skill:${skill.name}`,
     detail: skill.description,
     insert: `/skill:${skill.name} `

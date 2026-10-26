@@ -64,3 +64,27 @@ test('/ starts a message with a skill', async ({ configuredChat: chat }) => {
   await page.keyboard.type('lay out the hero')
   await expect(chat.input).toHaveText('/skill:grid lay out the hero')
 })
+
+test('editing a sent message keeps its chips and Escape cancels', async ({
+  configuredChat: chat
+}) => {
+  const { page } = chat
+  await page.evaluate(() => {
+    const store = window.openPencil?.getStore?.()
+    if (!store) throw new Error('No store')
+    store.graph.createNode('FRAME', store.state.currentPageId, { name: 'Hero' })
+  })
+  await chat.input.click()
+  await page.keyboard.type('Widen @Her')
+  await page.getByRole('option', { name: /Hero/ }).click()
+  await page.keyboard.press('Enter')
+  await expect(chat.assistantMessage()).toBeVisible()
+
+  await chat.userMessage().hover()
+  await page.getByRole('button', { name: 'Edit message' }).click()
+  const editor = page.getByRole('textbox', { name: 'Edit message' })
+  await expect(editor.locator('[data-slot="chat-reference"]')).toHaveText('Hero')
+  await expect(editor).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(editor).toBeHidden()
+})

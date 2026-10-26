@@ -66,8 +66,13 @@ const lastRequest = computed(() => messages.findLast((m) => m.role === 'user'))
 /** Messages with attachments carry context a plain text edit would drop. */
 const editableRequestId = computed(() => {
   const request = lastRequest.value
-  if (!request || presentations?.[request.id]?.attachments?.length) return undefined
-  return attachmentsForMessage(request.id).value.length > 0 ? undefined : request.id
+  if (!request) return undefined
+  // Images would be lost when the text is sent again; layer previews follow the edited text.
+  const attachments = [
+    ...(presentations?.[request.id]?.attachments ?? []),
+    ...attachmentsForMessage(request.id).value
+  ]
+  return attachments.some((attachment) => attachment.kind !== 'node') ? undefined : request.id
 })
 const transcriptContent = ref<HTMLDivElement>()
 const viewportComponent = ref<{ viewportElement?: HTMLElement }>()

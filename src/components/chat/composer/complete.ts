@@ -1,14 +1,35 @@
 import type { Completion, CompletionContext, CompletionSource } from '@codemirror/autocomplete'
 import type { EditorView } from '@codemirror/view'
+import type { Component } from 'vue'
+import IconBookOpen from '~icons/lucide/book-open'
+import IconFile from '~icons/lucide/file'
+import IconSquareSlash from '~icons/lucide/square-slash'
 
 import type { CommandCandidate, ReferenceCandidate } from '@/app/ai/chat/references/candidates'
 import { referenceLink, type ChatReferenceKind } from '@/app/ai/chat/references/link'
+import { sceneNodeIcon } from '@/components/icons'
+
+/** A completion with the glyph its row shows: a layer's kind, a page, a skill, a command. */
+export interface ComposerCompletion extends Completion {
+  icon: Component
+}
+
+export function completionIcon(completion: Completion): Component | null {
+  return 'icon' in completion ? (completion as ComposerCompletion).icon : null
+}
 
 export interface ComposerSections {
   node: string
   page: string
   skill: string
   command: string
+}
+
+/** A layer shows its own kind's glyph; these stand in for the rest. */
+const KIND_ICONS: Record<ChatReferenceKind, Component> = {
+  node: IconFile,
+  page: IconFile,
+  skill: IconBookOpen
 }
 
 const SECTION_RANK: Record<ChatReferenceKind, number> = { node: 0, page: 1, skill: 2 }
@@ -38,7 +59,8 @@ export function referenceCompletion(
     return {
       from: typed.from + at + 1,
       validFor: /^[^\s@]*$/,
-      options: candidates().map(({ reference, detail }) => ({
+      options: candidates().map(({ reference, detail, node }): ComposerCompletion => ({
+        icon: node ? sceneNodeIcon(node) : KIND_ICONS[reference.kind],
         label: reference.label || reference.id,
         detail: detail ?? undefined,
         section: { name: names[reference.kind], rank: SECTION_RANK[reference.kind] },
@@ -60,7 +82,8 @@ export function commandCompletion(
     return {
       from: 0,
       validFor: /^\/\S*$/,
-      options: candidates().map((command) => ({
+      options: candidates().map((command): ComposerCompletion => ({
+        icon: command.kind === 'skill' ? IconBookOpen : IconSquareSlash,
         label: command.label,
         detail: command.detail,
         section,

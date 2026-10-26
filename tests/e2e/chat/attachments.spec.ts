@@ -5,7 +5,7 @@ import { expect, test } from '#tests/helpers/chat/fixture'
 const PILOT = 'tests/fixtures/vectorize/pilot_avatar.png'
 const PYTHON = 'tests/fixtures/vectorize/python_logo.png'
 
-test('current selection toggles and remains visible in history', async ({
+test('the selection button mentions the selected layers, which history shows', async ({
   configuredChat: chat
 }) => {
   const nodeId = await chat.page.evaluate(() => {
@@ -17,23 +17,20 @@ test('current selection toggles and remains visible in history', async ({
     store.select([node.id])
     return node.id
   })
-  const toggle = chat.page.getByRole('button', { name: 'Add current selection as context' })
-  await toggle.click()
-  await expect(toggle).toHaveAttribute('data-state', 'on')
-  await expect(toggle).toBeEnabled()
-  await expect(chat.page.locator('[data-slot="chat-context-chip"] img')).toBeVisible()
-  await toggle.click()
-  await expect(chat.page.locator('[data-slot="chat-context-chip"]')).toHaveCount(0)
-  await toggle.click()
-  await chat.submit('Make it larger')
+  await chat.input.click()
+  await chat.page.keyboard.type('Make ')
+  await chat.page.getByRole('button', { name: 'Mention the selected layers' }).click()
+  await expect(chat.input.locator('[data-slot="chat-reference"]')).toHaveText('Pinned hero')
+  await chat.page.keyboard.type('larger')
+  await chat.page.keyboard.press('Enter')
 
-  await expect(chat.userMessage()).not.toContainText('[Referenced nodes')
+  await expect(chat.userMessage().locator('[data-slot="chat-reference"]')).toHaveText('Pinned hero')
   await expect(
     chat.userMessage().getByRole('button', { name: /View attachment Pinned hero/ })
   ).toBeVisible()
   await expect
     .poll(() => chat.page.locator('html').getAttribute('data-last-chat-request'))
-    .toContain(nodeId)
+    .toContain(encodeURIComponent(nodeId))
 })
 
 test('image drafts can be attached and removed', async ({ configuredChat: chat }) => {
@@ -64,15 +61,15 @@ test('sent images and text appear immediately in history', async ({ configuredCh
   ).toBeVisible()
 })
 
-test('node context stays hidden when combined with an image', async ({ configuredChat: chat }) => {
+test('a mentioned layer sends with an image', async ({ configuredChat: chat }) => {
   await chat.page.evaluate(() => {
     const store = window.openPencil?.getStore?.()
     if (!store) throw new Error('Store not available')
     const node = store.graph.createNode('RECTANGLE', store.state.currentPageId, { name: 'Card' })
     store.select([node.id])
   })
-  await chat.input.fill('Use this reference')
-  await chat.page.getByRole('button', { name: 'Add current selection as context' }).click()
+  await chat.input.fill('Use this reference ')
+  await chat.page.getByRole('button', { name: 'Mention the selected layers' }).click()
   const chooser = chat.page.waitForEvent('filechooser')
   await chat.page.getByRole('button', { name: 'Attach images' }).click()
   await (await chooser).setFiles(PILOT)
