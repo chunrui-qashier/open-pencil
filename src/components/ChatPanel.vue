@@ -7,6 +7,13 @@ import { useI18n } from '@open-pencil/vue/i18n'
 
 import { revokeImagePreviewURL } from '@/app/ai/attachment/image/prepare'
 import { chatDocumentId } from '@/app/ai/chat/history/document'
+import {
+  clearQueuedMessages,
+  enqueueMessage,
+  queuedMessages,
+  removeQueuedMessage,
+  takeNextMessage
+} from '@/app/ai/chat/queue'
 import { useChatRunLocation } from '@/app/ai/chat/run-location'
 import type { ChatSubmission } from '@/app/ai/chat/submission/types'
 import { useChatSubmission } from '@/app/ai/chat/submission/use'
@@ -100,6 +107,7 @@ const agentHistoryReadOnly = computed(
 async function historyAction(action: () => Promise<unknown>) {
   const generation = ++viewGeneration
   submission.cancel()
+  clearQueuedMessages()
   try {
     await chat.value?.stop()
     await action()
@@ -171,6 +179,24 @@ const failureHasSettingsAction = computed(() =>
   )
 )
 const status = computed(() => chat.value?.status ?? 'ready')
+
+/**
+ * A message written while the agent works waits for it: Enter steers, which the built-in chat
+ * takes in once the current tool calls finish, and Alt+Enter waits until all work is done.
+ */
+function sendOrQueue(message: ChatSubmission, afterWork: boolean) {
+  if (status.value === 'streaming' || status.value === 'submitted') {
+    enqueueMessage(message, afterWork ? 'follow-up' : 'steer')
+    return
+  }
+  void submitMessage(message)
+}
+// Once a reply ends, what waited goes next, one message per reply; a failed reply keeps them.
+watch(status, (now, before) => {
+  if (now !== 'ready' || before === 'ready') return
+  const next = takeNextMessage()
+  if (next) void submitMessage(next)
+})
 const showContinue = computed(() => {
   if (history.readOnly.value || agentHistoryReadOnly.value) return false
   if (status.value !== 'ready') return false
@@ -218,7 +244,10 @@ watch(
     const generation = ++viewGeneration
     const conversationId = history.current.value?.id
     submission.cancel()
-    if (tabId !== previousTabId) chat.value = null
+    if (tabId !== previousTabId) {
+      chat.value = null
+      clearQueuedMessages()
+    }
     try {
       await history.initialize()
     } catch {
@@ -276,6 +305,9 @@ function handleStop() {
         :messages="messages"
         :status="status"
         :show-continue="showContinue"
+        :queued="queuedMessages"
+        :steers="!providerID.startsWith('acp:') && providerID !== 'harness:pi'"
+        @remove-queued="removeQueuedMessage"
         :nodes-live="!history.readOnly.value"
         :interactive="chat !== null && !submission.busy.value"
         @regenerate="submission.regenerate()"
@@ -310,8 +342,9 @@ function handleStop() {
         :status="status"
         :dragging="draggingImages"
         :disabled="submission.busy.value || history.busy.value"
-        @submit="submitMessage"
+        @submit="sendOrQueue"
         @stop="handleStop"
+        @interrupt="handleStop"
         @error="toast.error"
       />
 

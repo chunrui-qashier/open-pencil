@@ -7,6 +7,7 @@ import { useI18n } from '@open-pencil/vue/i18n'
 
 import { revokeImagePreviewURL } from '@/app/ai/attachment/image/prepare'
 import { MAX_IMAGE_ATTACHMENTS } from '@/app/ai/attachment/image/types'
+import { takeBackMessages } from '@/app/ai/chat/queue'
 import type { ChatSubmission } from '@/app/ai/chat/submission/types'
 import { useAIChat } from '@/app/ai/chat/use'
 import { designModelProfile } from '@/app/ai/models'
@@ -37,8 +38,10 @@ const {
 }>()
 
 const emit = defineEmits<{
-  submit: [submission: ChatSubmission]
+  /** `afterWork`: while the agent works, wait until it has finished (Alt+Enter). */
+  submit: [submission: ChatSubmission, afterWork: boolean]
   stop: []
+  interrupt: []
   error: [message: string]
 }>()
 
@@ -66,17 +69,23 @@ const composer = useTemplateRef<{
 
 const completions = useComposerCompletions()
 
+/** Up on the first line takes waiting messages back to edit, their images with them. */
+function takeBack(): string | null {
+  const taken = takeBackMessages()
+  if (taken.length === 0) return null
+  for (const submission of taken) restoreSubmission(submission)
+  return taken.map((submission) => submission.displayText).join('\n')
+}
+
 /** Puts back an unsent message with its attachments; releases them if newer text replaced it. */
 function restoreDraft(submission: ChatSubmission): void {
   if (composer.value?.restoreDraft(submission.displayText)) restoreSubmission(submission)
   else for (const image of submission.images) revokeImagePreviewURL(image.previewURL)
 }
 
-const isStreaming = computed(() => disabled || status === 'streaming' || status === 'submitted')
-
 /** Why images dropped now would not be attached, or null when they would. */
 const dropRefusal = computed(() => {
-  if (isStreaming.value) return ai.value.dropImagesAfterReply
+  if (disabled) return ai.value.dropImagesAfterReply
   if (images.value.length >= MAX_IMAGE_ATTACHMENTS) {
     return ai.value.dropImagesLimit({ count: MAX_IMAGE_ATTACHMENTS })
   }
@@ -128,8 +137,10 @@ const selectedProfileName = computed(
     :status="status"
     :disabled="disabled"
     :completions="completions"
-    @submit="emit('submit', takeSubmission($event))"
+    :take-back="takeBack"
+    @submit="(text, afterWork) => emit('submit', takeSubmission(text), afterWork)"
     @stop="emit('stop')"
+    @interrupt="emit('interrupt')"
     @paste="handlePaste"
     @settings="openSettingsDialog('ai')"
   >
@@ -172,7 +183,7 @@ const selectedProfileName = computed(
       <IconButton
         :label="ai.mentionSelection"
         size="sm"
-        :disabled="isStreaming || !canMentionSelection"
+        :disabled="disabled || !canMentionSelection"
         data-slot="chat-mention-selection"
         @click="composer?.insert(selectionMentions())"
       >
@@ -181,7 +192,7 @@ const selectedProfileName = computed(
       <IconButton
         :label="ai.attachImages"
         size="sm"
-        :disabled="isStreaming || images.length >= MAX_IMAGE_ATTACHMENTS"
+        :disabled="disabled || images.length >= MAX_IMAGE_ATTACHMENTS"
         @click="openImageDialog()"
       >
         <icon-lucide-image-plus class="size-4" />

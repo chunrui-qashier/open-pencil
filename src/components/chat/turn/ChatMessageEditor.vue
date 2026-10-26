@@ -21,7 +21,10 @@ const editor = useChatEditor(host, {
   attributes: {},
   completions: useComposerCompletions(),
   onSubmit: save,
-  onCancel: () => emit('cancel')
+  onCancel: () => {
+    emit('cancel')
+    return true
+  }
 })
 const { text: draft } = editor
 

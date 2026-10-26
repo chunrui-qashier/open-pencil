@@ -36,9 +36,15 @@ interface ChatEditorOptions {
   /** Attributes for the editable element, such as its test ID. */
   attributes: Record<string, string>
   completions: CompletionSource[]
-  onSubmit: () => void
+  /** Enter sends, or Alt+Enter, which while the agent works waits until it has finished. */
+  onSubmit: (afterWork: boolean) => void
   /** Escape, when no completion is open; leaves Escape to the window otherwise. */
-  onCancel?: () => void
+  onCancel?: () => boolean
+  /**
+   * Up on the first line: text taken back from somewhere, such as messages waiting to be sent,
+   * to put ahead of what is typed; null leaves Up to move the caret.
+   */
+  onTakeBack?: () => string | null
 }
 
 /**
@@ -76,18 +82,36 @@ export function useChatEditor(
             key: 'Enter',
             run: (editor) => {
               if (completionStatus(editor.state) === 'active') return acceptCompletion(editor)
-              options.onSubmit()
+              options.onSubmit(false)
+              return true
+            }
+          },
+          {
+            key: 'Alt-Enter',
+            run: () => {
+              options.onSubmit(true)
               return true
             }
           },
           { key: 'Shift-Enter', run: insertNewline },
           {
+            key: 'ArrowUp',
+            run: (editor) => {
+              const { head } = editor.state.selection.main
+              if (completionStatus(editor.state) === 'active') return false
+              if (editor.state.doc.lineAt(head).number !== 1) return false
+              const taken = options.onTakeBack?.()
+              if (!taken) return false
+              const current = editor.state.doc.toString()
+              setText(current.trim() ? `${taken}\n${current}` : taken)
+              return true
+            }
+          },
+          {
             key: 'Escape',
             run: (editor) => {
-              const cancel = options.onCancel
-              if (!cancel || completionStatus(editor.state) === 'active') return false
-              cancel()
-              return true
+              if (completionStatus(editor.state) === 'active') return false
+              return options.onCancel?.() ?? false
             }
           }
         ])

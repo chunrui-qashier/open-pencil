@@ -44,6 +44,11 @@ export type ToolLoopTransportOptions = {
   /** Records each run so a saved trace can rebuild its requests. */
   recorder?: RunRecorder
   skills?: SkillLibrary
+  /**
+   * Whether the person has a message waiting to go in mid-turn. The run then ends once the
+   * current step's tool calls finish, and the chat sends that message next.
+   */
+  yieldWhen?: () => boolean
 }
 
 const ANTHROPIC_CACHE_CONTROL = {
@@ -91,7 +96,8 @@ export function createToolLoopTransport({
   onError,
   diagnosticContext = {},
   recorder,
-  skills = appSkillLibrary
+  skills = appSkillLibrary,
+  yieldWhen = () => false
 }: ToolLoopTransportOptions) {
   const tools: AITools = {
     ...createAITools(store, diagnosticContext),
@@ -138,7 +144,7 @@ export function createToolLoopTransport({
       return {
         ...options,
         instructions,
-        stopWhen: stepCountIs(currentRun(store).maxSteps),
+        stopWhen: [stepCountIs(currentRun(store).maxSteps), () => yieldWhen()],
         tools: offered,
         maxOutputTokens,
         ...callSettings(providerID, cacheProviderOptions, thinkingLevel(), minReasoningEffort)

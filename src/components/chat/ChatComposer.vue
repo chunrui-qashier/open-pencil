@@ -13,37 +13,52 @@ import InputGroup from '@/components/ui/input/InputGroup.vue'
 const {
   status,
   disabled = false,
-  completions = []
+  completions = [],
+  takeBack
 } = defineProps<{
   status: ChatStatus
   disabled?: boolean
   /** What `@` and `/` offer; read once, when the field mounts. */
   completions?: CompletionSource[]
+  /** Messages waiting to be sent, taken back into the field by Up on its first line. */
+  takeBack?: () => string | null
 }>()
 const emit = defineEmits<{
-  submit: [text: string]
+  /** `afterWork` asks, while the agent works, to wait until it has finished (Alt+Enter). */
+  submit: [text: string, afterWork: boolean]
   stop: []
+  /** Escape while the agent works: stop it and send what is waiting. */
+  interrupt: []
   settings: []
   paste: [event: ClipboardEvent]
 }>()
 const { ai } = useI18n()
-const isStreaming = computed(() => disabled || status === 'streaming' || status === 'submitted')
+/** The agent is replying; messages written now wait for it, so the field stays open. */
+const working = computed(() => status === 'streaming' || status === 'submitted')
 const host = useTemplateRef<HTMLDivElement>('host')
 const editor = useChatEditor(host, {
   label: () => ai.value.describeChange,
-  placeholder: () => ai.value.describeChange,
-  editable: () => !isStreaming.value,
+  placeholder: () => (working.value ? ai.value.queueMessage : ai.value.describeChange),
+  editable: () => !disabled,
   attributes: { 'data-test-id': 'chat-input' },
   completions,
-  onSubmit: submit
+  onSubmit: submit,
+  onCancel: () => {
+    if (!working.value) return false
+    emit('interrupt')
+    return true
+  },
+  onTakeBack: () => takeBack?.() ?? null
 })
 const { text } = editor
+/** Stop while the agent works; once something is typed, Send queues it instead. */
+const showStop = computed(() => disabled || (working.value && !text.value.trim()))
 
-function submit() {
-  if (isStreaming.value) return
+function submit(afterWork = false) {
+  if (disabled) return
   const message = text.value.trim()
   if (!message) return
-  emit('submit', message)
+  emit('submit', message, afterWork)
   editor.setText('')
 }
 
@@ -67,7 +82,7 @@ defineExpose({ restoreDraft, insert: editor.insert, focus: editor.focus })
   <TooltipProvider>
     <div class="shrink-0 border-t border-border p-2.5">
       <form class="relative" @submit="handleSubmit" @paste.stop="emit('paste', $event)">
-        <InputGroup :disabled="isStreaming">
+        <InputGroup :disabled="disabled">
           <template v-if="$slots.attachment" #attachment><slot name="attachment" /></template>
 
           <div ref="host" class="min-w-0" @copy.stop @cut.stop />
@@ -86,7 +101,7 @@ defineExpose({ restoreDraft, insert: editor.insert, focus: editor.focus })
               <icon-lucide-settings class="size-3.5" />
             </IconButton>
             <IconButton
-              v-if="isStreaming"
+              v-if="showStop"
               :label="ai.stopGenerating"
               size="sm"
               data-test-id="chat-stop-button"
