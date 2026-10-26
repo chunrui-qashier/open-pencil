@@ -10,8 +10,8 @@ const skillPreferencesSchema = v.object({
 })
 
 /**
- * The sources and skills the user turned off or back on, where everything else is on, as in
- * pi; and the skills folders near documents the user trusts, where everything else is off.
+ * The sources and skills the user turned on or off, and the skills folders near documents the
+ * user trusts, where everything else is off.
  */
 export type SkillPreferences = v.InferOutput<typeof skillPreferencesSchema>
 
@@ -43,8 +43,38 @@ export function isSkillsFolderTrusted(path: string, preferences: SkillPreference
   return preferences.trustedFolders[path] ?? false
 }
 
+/**
+ * Uploads and folders next to a document are chosen for design work; the folders coding agents
+ * share hold their own workflows, such as releases or email, so they start off until picked.
+ */
+const SOURCES_ON_BY_DEFAULT: Record<SkillSourceID, boolean> = {
+  openpencil: true,
+  project: true,
+  agents: false,
+  claude: false
+}
+
 export function isSkillSourceEnabled(source: SkillSourceID, preferences: SkillPreferences) {
-  return preferences.sources[source] ?? true
+  return preferences.sources[source] ?? SOURCES_ON_BY_DEFAULT[source]
+}
+
+/**
+ * Preferences that use exactly the picked skills among `offered`, from coding agents' folders:
+ * a folder turns on when any of its skills is picked, and its other skills turn off.
+ */
+export function withPickedSkills(
+  preferences: SkillPreferences,
+  offered: readonly Skill[],
+  picked: ReadonlySet<string>
+): SkillPreferences {
+  const sources = { ...preferences.sources }
+  const skills = { ...preferences.skills }
+  for (const skill of offered) {
+    const key = skillPreferenceKey(skill)
+    skills[key] = picked.has(key)
+    if (picked.has(key)) sources[skill.source] = true
+  }
+  return { ...preferences, sources, skills }
 }
 
 export function isSkillEnabled(skill: Skill, preferences: SkillPreferences): boolean {

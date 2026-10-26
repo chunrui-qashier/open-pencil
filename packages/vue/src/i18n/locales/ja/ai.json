@@ -247,6 +247,8 @@
   "aiSetupAgentInstall": "まだインストールしていない場合は、次を実行してください：",
   "aiSetupAgentInstallSupported": "対応しているアダプターをインストールします:",
   "aiSetupMeteredNote": "OpenRouter なら、1 つのアカウントと 1 つのキーで複数ベンダーのモデルを使えます。",
+  "aiSetupSkillsTitle": "コーディングエージェントのスキル",
+  "aiSetupSkillsDescription": "デザインチャットでは、コーディングエージェントがインストールしたスキルを使えます。多くは開発用のワークフローなので、デザインに役立つものだけを選んでください。あとから 設定 › スキル で変更できます。",
   "aiSetupReviewTitle": "設定を確認",
   "aiSetupAgentModel": "モデルはエージェントが選択",
   "aiSetupFinish": "設定を完了",

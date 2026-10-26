@@ -247,6 +247,8 @@
   "aiSetupAgentInstall": "Falls es noch nicht installiert ist, führe Folgendes aus:",
   "aiSetupAgentInstallSupported": "Installiere den unterstützten Adapter:",
   "aiSetupMeteredNote": "OpenRouter bietet Modelle mehrerer Anbieter mit einem Konto und einem Schlüssel.",
+  "aiSetupSkillsTitle": "Skills deiner Coding-Agenten",
+  "aiSetupSkillsDescription": "Der Design-Chat kann Skills nutzen, die deine Coding-Agenten installiert haben. Die meisten sind Coding-Workflows, wähle also nur die, die beim Design helfen; unter Einstellungen › Skills lässt sich das später ändern.",
   "aiSetupReviewTitle": "Einrichtung prüfen",
   "aiSetupAgentModel": "Vom Agenten gewähltes Modell",
   "aiSetupFinish": "Einrichtung abschließen",

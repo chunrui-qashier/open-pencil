@@ -247,6 +247,8 @@
   "aiSetupAgentInstall": "Si aún no está instalado, ejecuta:",
   "aiSetupAgentInstallSupported": "Instala el adaptador compatible:",
   "aiSetupMeteredNote": "OpenRouter te da modelos de varios proveedores con una sola cuenta y una sola clave.",
+  "aiSetupSkillsTitle": "Habilidades de tus agentes de programación",
+  "aiSetupSkillsDescription": "El chat de diseño puede usar habilidades que instalaron tus agentes de programación. La mayoría son flujos de programación, así que elige solo las que ayudan con el diseño; puedes cambiarlas en Ajustes › Habilidades.",
   "aiSetupReviewTitle": "Revisa tu configuración",
   "aiSetupAgentModel": "Modelo elegido por el agente",
   "aiSetupFinish": "Terminar la configuración",

@@ -354,6 +354,9 @@ export const aiMessageDefaults = {
   aiSetupGetDesktop: 'Get the desktop app',
   aiSetupMeteredNote:
     'OpenRouter gives you models from several vendors with one account and one key.',
+  aiSetupSkillsTitle: 'Skills from your coding agents',
+  aiSetupSkillsDescription:
+    'The design chat can use skills your coding agents installed. Most are coding workflows, so pick only the ones that help with design; Settings › Skills changes them later.',
   aiSetupReviewTitle: 'Review your setup',
   aiSetupAgentModel: 'Model chosen by the agent',
   aiSetupFinish: 'Finish setup',

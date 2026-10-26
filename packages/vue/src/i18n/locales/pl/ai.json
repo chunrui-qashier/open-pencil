@@ -247,6 +247,8 @@
   "aiSetupAgentInstall": "Jeśli nie jest jeszcze zainstalowany, uruchom:",
   "aiSetupAgentInstallSupported": "Zainstaluj obsługiwany adapter:",
   "aiSetupMeteredNote": "OpenRouter daje dostęp do modeli wielu dostawców z jednym kontem i jednym kluczem.",
+  "aiSetupSkillsTitle": "Umiejętności twoich agentów programistycznych",
+  "aiSetupSkillsDescription": "Czat projektowy może używać umiejętności zainstalowanych przez twoich agentów programistycznych. Większość to procesy programistyczne, więc wybierz tylko te, które pomagają w projektowaniu; zmienisz je później w Ustawienia › Umiejętności.",
   "aiSetupReviewTitle": "Sprawdź konfigurację",
   "aiSetupAgentModel": "Model wybrany przez agenta",
   "aiSetupFinish": "Zakończ konfigurację",

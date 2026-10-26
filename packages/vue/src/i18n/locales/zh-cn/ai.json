@@ -247,6 +247,8 @@
   "aiSetupAgentInstall": "如果尚未安装，请运行：",
   "aiSetupAgentInstallSupported": "安装受支持的适配器：",
   "aiSetupMeteredNote": "OpenRouter 让你用一个账户和一个密钥使用多家厂商的模型。",
+  "aiSetupSkillsTitle": "编程智能体的技能",
+  "aiSetupSkillsDescription": "设计聊天可以使用你的编程智能体安装的技能。其中大多是编程工作流，所以只选对设计有帮助的；之后可在“设置 › 技能”中更改。",
   "aiSetupReviewTitle": "检查你的设置",
   "aiSetupAgentModel": "模型由智能体选择",
   "aiSetupFinish": "完成设置",

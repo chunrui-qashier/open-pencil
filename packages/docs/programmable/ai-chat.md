@@ -44,9 +44,9 @@ Open **Settings → Skills** to see where skills come from:
 
 - **Uploaded**: upload a ZIP of a skill's folder or a single `SKILL.md`. Uploads stay in OpenPencil and work in the browser too.
 - **Next to this document** (desktop): `.agents/skills` and `.claude/skills` folders from the open document's folder up to its repository. They stay off until you choose **Trust folder**, because a skill gives the AI instructions it follows.
-- **Shared agent skills** and **Claude Code skills** (desktop): `~/.agents/skills` and `~/.claude/skills`, where other coding agents install skills.
+- **Shared agent skills** and **Claude Code skills** (desktop): `~/.agents/skills` and `~/.claude/skills`, where other coding agents install skills. Most of those are coding workflows, so these folders start off; the review step of the AI setup lists their skills for you to pick the ones that help with design.
 
-Everything found is on until you turn a folder or a skill off. Open a skill to switch it, read its instructions, see its files, or check warnings about how it departs from the specification. When two skills share a name, the first in that order is used.
+Uploads are on as soon as you add them, and any folder or skill can be switched on or off. Open a skill to switch it, read its instructions, see its files, or check warnings about how it departs from the specification. When two skills share a name, the first in that order is used.
 
 To run a skill yourself, start a message with `/skill:name`. Pi gets the enabled skills as its own. ACP agents such as Claude Code and Codex load their own skills.
 
