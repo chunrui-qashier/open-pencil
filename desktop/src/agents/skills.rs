@@ -5,6 +5,7 @@
 //! hold a SKILL.md, and only files inside those.
 
 use std::fs;
+use std::io::Read;
 use std::path::{Component, Path, PathBuf};
 
 const SKILL_FILE: &str = "SKILL.md";
@@ -43,16 +44,33 @@ fn is_listed_name(name: &str) -> bool {
     !name.starts_with('.') && name != "node_modules"
 }
 
+/// `path` with symlinks resolved, when that stays inside `skill` (itself resolved).
+fn inside_skill(skill: &Path, path: &Path) -> Option<PathBuf> {
+    let resolved = path.canonicalize().ok()?;
+    resolved.starts_with(skill).then_some(resolved)
+}
+
+/// A regular file's text, refused past `limit`: a device or a FIFO would never end.
 fn read_bounded(path: &Path, limit: u64) -> Result<String, String> {
-    let size = fs::metadata(path).map_err(|error| error.to_string())?.len();
-    if size > limit {
+    let metadata = fs::metadata(path).map_err(|_| "The file cannot be read.".to_owned())?;
+    if !metadata.is_file() {
+        return Err("The path is not a file.".to_owned());
+    }
+    if metadata.len() > limit {
         return Err(format!("The file is larger than {} KB.", limit / 1024));
     }
-    let bytes = fs::read(path).map_err(|error| error.to_string())?;
+    let mut bytes = Vec::new();
+    fs::File::open(path)
+        .and_then(|file| file.take(limit + 1).read_to_end(&mut bytes))
+        .map_err(|_| "The file cannot be read.".to_owned())?;
+    if bytes.len() as u64 > limit {
+        return Err(format!("The file is larger than {} KB.", limit / 1024));
+    }
     String::from_utf8(bytes).map_err(|_| "The file is not text.".to_owned())
 }
 
-fn list_files(dir: &Path, prefix: &str, depth: usize, files: &mut Vec<String>) {
+/// Lists the files under `dir` inside `skill`; symlinks are followed only while they stay inside.
+fn list_files(skill: &Path, dir: &Path, prefix: &str, depth: usize, files: &mut Vec<String>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
     };
@@ -73,13 +91,15 @@ fn list_files(dir: &Path, prefix: &str, depth: usize, files: &mut Vec<String>) {
         } else {
             format!("{prefix}/{name}")
         };
-        // `metadata` follows symlinks, as the agents that installed them do.
-        let Ok(metadata) = fs::metadata(entry.path()) else {
+        let Some(resolved) = inside_skill(skill, &entry.path()) else {
+            continue;
+        };
+        let Ok(metadata) = fs::metadata(&resolved) else {
             continue;
         };
         if metadata.is_dir() {
             if depth + 1 < MAX_DEPTH {
-                list_files(&entry.path(), &relative, depth + 1, files);
+                list_files(skill, &resolved, &relative, depth + 1, files);
             }
         } else if metadata.is_file() {
             files.push(relative);
@@ -103,9 +123,12 @@ pub fn read_skill_folders(root: &Path) -> Vec<SkillFolder> {
                 return None;
             }
             let dir = entry.path();
-            let skill_file = read_bounded(&dir.join(SKILL_FILE), MAX_SKILL_FILE_BYTES).ok()?;
+            // The folder itself may be a symlink into a checkout; nothing in it may lead out.
+            let skill = dir.canonicalize().ok()?;
+            let skill_path = inside_skill(&skill, &skill.join(SKILL_FILE))?;
+            let skill_file = read_bounded(&skill_path, MAX_SKILL_FILE_BYTES).ok()?;
             let mut files = Vec::new();
-            list_files(&dir, "", 0, &mut files);
+            list_files(&skill, &skill, "", 0, &mut files);
             Some(SkillFolder {
                 name,
                 path: dir.to_string_lossy().into_owned(),
@@ -130,15 +153,12 @@ pub fn read_skill_folder_file(dir: &Path, path: &str) -> Result<String, String> 
     if !dir.parent().is_some_and(is_skills_root) || !dir.join(SKILL_FILE).is_file() {
         return Err("The folder is not a skill.".to_owned());
     }
-    let canonical_dir = dir.canonicalize().map_err(|error| error.to_string())?;
-    let target = canonical_dir
-        .join(relative)
+    let skill = dir
         .canonicalize()
-        .map_err(|error| error.to_string())?;
+        .map_err(|_| "The folder is not a skill.".to_owned())?;
     // A symlink inside the skill must not lead out of it.
-    if !target.starts_with(&canonical_dir) {
-        return Err(format!("\"{path}\" is not a file in the skill."));
-    }
+    let target = inside_skill(&skill, &skill.join(relative))
+        .ok_or_else(|| format!("\"{path}\" is not a file in the skill."))?;
     read_bounded(&target, MAX_FILE_BYTES)
 }
 
@@ -323,6 +343,40 @@ mod tests {
             Vec::<PathBuf>::new()
         );
         assert!(project_skill_roots(Path::new("relative/dir"), None).is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn neither_listing_nor_skill_file_follows_a_symlink_out() {
+        let root = Scratch::new();
+        let outside = Scratch::new();
+        outside.write("notes/secret.md", "no");
+        outside.write("stolen.md", "---\nname: stolen\ndescription: x\n---\n");
+        root.write("grid/SKILL.md", "---\nname: grid\n---\n");
+        std::os::unix::fs::symlink(outside.0.join("notes"), root.0.join("grid/notes")).unwrap();
+        fs::create_dir_all(root.0.join("stolen")).unwrap();
+        std::os::unix::fs::symlink(outside.0.join("stolen.md"), root.0.join("stolen/SKILL.md"))
+            .unwrap();
+
+        let folders = read_skill_folders(&root.0);
+        assert_eq!(
+            folders.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(),
+            vec!["grid"]
+        );
+        assert!(folders[0].files.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_fifo_is_not_read() {
+        let root = Scratch::new();
+        fs::create_dir_all(root.0.join("pipe")).unwrap();
+        let status = std::process::Command::new("mkfifo")
+            .arg(root.0.join("pipe/SKILL.md"))
+            .status()
+            .unwrap();
+        assert!(status.success());
+        assert!(read_skill_folders(&root.0).is_empty());
     }
 
     #[cfg(unix)]
