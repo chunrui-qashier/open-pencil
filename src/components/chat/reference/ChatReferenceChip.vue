@@ -10,8 +10,8 @@ import { getActiveEditorStoreOrNull, useActiveEditorStoreRef } from '@/app/edito
 import { notificationMessages } from '@/app/i18n/notifications'
 import { toast } from '@/app/shell/ui'
 import { CHAT_NODES_LIVE } from '@/components/chat/tool/context'
+import { chatReferenceTheme } from '@/components/chat/ui'
 import { sceneNodeIcon } from '@/components/icons'
-import { chatReferenceTheme } from '@/theme/chat/reference'
 
 /**
  * A layer, page, or skill named in chat text. In the transcript it shows its target when
