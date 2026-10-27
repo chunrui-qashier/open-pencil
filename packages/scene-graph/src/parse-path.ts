@@ -38,6 +38,14 @@ export function parseSVGPath(
   return parsed.ok ? parsed.network : { vertices: [], segments: [], regions: [] }
 }
 
+/**
+ * Parse a `d` as SVG draws it: any command SVG has, every subpath filled under `windingRule`,
+ * open or closed. Unlike `parseSVGPath`, a path that does not parse says why.
+ */
+export function parseSVGPathData(d: string, windingRule: WindingRule): SVGPathParseResult {
+  return parsePath(d, windingRule, { includeOpenRegions: true, strictCommands: false })
+}
+
 /** Parse the strict absolute command subset accepted by Figma's VectorPath API. */
 export function parsePluginVectorPath(
   d: string,
