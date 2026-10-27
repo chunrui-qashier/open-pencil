@@ -80,9 +80,13 @@ defineExpose({ restoreDraft, insert: editor.insert, focus: editor.focus })
 </script>
 <template>
   <TooltipProvider>
-    <div class="shrink-0 border-t border-border p-2.5">
+    <!-- The message box rests on the panel as a card, its shadow parting it from the messages. -->
+    <div class="shrink-0 px-2.5 pt-1 pb-2.5">
       <form class="relative" @submit="handleSubmit" @paste.stop="emit('paste', $event)">
-        <InputGroup :disabled="disabled">
+        <InputGroup
+          :disabled="disabled"
+          :ui="{ root: 'shadow-[0_1px_2px_rgb(0_0_0/0.08),0_4px_14px_rgb(0_0_0/0.12)]' }"
+        >
           <template v-if="$slots.attachment" #attachment><slot name="attachment" /></template>
 
           <div ref="host" class="min-w-0" @copy.stop @cut.stop />
