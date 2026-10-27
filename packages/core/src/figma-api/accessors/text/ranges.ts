@@ -401,15 +401,11 @@ const RANGE_SETTERS: Record<string, RangeSetter> = {
   })
 }
 
-/** Range setters that leave the text's layout alone, so Figma takes them with fonts unloaded. */
+/** Range setters Figma takes with the text's fonts unloaded: paints and links, measured live. */
 const RANGE_SETTERS_WITHOUT_FONTS = new Set([
   'setRangeFills',
   'setRangeHyperlink',
-  'setRangeTextDecorationStyle',
-  'setRangeTextDecorationOffset',
-  'setRangeTextDecorationThickness',
-  'setRangeTextDecorationColor',
-  'setRangeTextDecorationSkipInk'
+  'setRangeTextDecorationColor'
 ])
 
 /** Range getters by method and the segment field each reads. */
@@ -555,7 +551,6 @@ export function installTextRangeMethods(
   methods.setRangeListOptions = {
     value(this: ProxyThis, start: number, end: number, value: TextListOptions) {
       assertProxyEditable(this, internals)
-      assertTextFontsLoaded('setRangeListOptions', raw(this, internals))
       setRangeListOptions(graph(this, internals), raw(this, internals), start, end, value)
     }
   }
@@ -567,7 +562,6 @@ export function installTextRangeMethods(
   methods.setRangeIndentation = {
     value(this: ProxyThis, start: number, end: number, value: number) {
       assertProxyEditable(this, internals)
-      assertTextFontsLoaded('setRangeIndentation', raw(this, internals))
       setRangeIndentation(graph(this, internals), raw(this, internals), start, end, value)
     }
   }
@@ -580,7 +574,6 @@ export function installTextRangeMethods(
     methods[`setRange${name}`] = {
       value(this: ProxyThis, start: number, end: number, value: number) {
         assertProxyEditable(this, internals)
-        assertTextFontsLoaded(`setRange${name}`, raw(this, internals))
         setRangeParagraphSpacing(
           graph(this, internals),
           raw(this, internals),

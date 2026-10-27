@@ -44,10 +44,50 @@ describe('text in a font that is not loaded', () => {
       ['deleteCharacters', () => node.deleteCharacters(0, 1)],
       ['setRangeFontSize', () => node.setRangeFontSize(0, 2, 30)],
       ['setRangeTextCase', () => node.setRangeTextCase(0, 2, 'UPPER')],
-      ['setRangeListOptions', () => node.setRangeListOptions(0, 2, { type: 'ORDERED' })]
+      ['setRangeListOptions', () => node.setRangeListOptions(0, 2, { type: 'ORDERED' })],
+      ['setRangeIndentation', () => node.setRangeIndentation(0, 2, 1)],
+      ['setRangeParagraphSpacing', () => node.setRangeParagraphSpacing(0, 2, 4)]
     ]
     for (const [method, edit] of edits) expect(edit).toThrow(unloadedWrite(method))
     expect(raw()).toEqual(before)
+  })
+
+  test('reports a wrong argument before the font', () => {
+    const { node } = unloadedText()
+    expect(() => node.setRangeFontSize(0, 99, 20)).toThrow('Range outside of available characters')
+    expect(() => node.setRangeFontSize(2, 2, 20)).toThrow('Empty range selected')
+    expect(() => node.insertCharacters(99, 'A')).toThrow(
+      'in insertCharacters: Cannot insert characters at index greater than the length of the text'
+    )
+    expect(() => node.setRangeIndentation(0, 2, 9)).toThrow(
+      'in setRangeIndentation: Property "indentation" failed validation'
+    )
+  })
+
+  test('refuses underline details but takes the underline colour, a paint', () => {
+    const { graph, node, raw } = unloadedText()
+    graph.updateNode(node.id, { textDecoration: 'UNDERLINE' })
+    const details: [string, () => void][] = [
+      ['setRangeTextDecorationStyle', () => node.setRangeTextDecorationStyle(0, 2, 'WAVY')],
+      [
+        'setRangeTextDecorationOffset',
+        () => node.setRangeTextDecorationOffset(0, 2, { unit: 'PIXELS', value: 2 })
+      ],
+      [
+        'setRangeTextDecorationThickness',
+        () => node.setRangeTextDecorationThickness(0, 2, { unit: 'PIXELS', value: 2 })
+      ],
+      ['setRangeTextDecorationSkipInk', () => node.setRangeTextDecorationSkipInk(0, 2, false)]
+    ]
+    for (const [method, edit] of details) expect(edit).toThrow(unloadedWrite(method))
+    node.setRangeTextDecorationColor(0, 2, { value: 'AUTO' })
+    expect(raw()?.textDecoration).toBe('UNDERLINE')
+  })
+
+  test('names fonts in its messages as Figma does', () => {
+    const { graph, node } = unloadedText()
+    graph.updateNode(node.id, { fontWeight: 600 })
+    expect(() => (node.fontSize = 20)).toThrow(`unloaded font "${UNLOADED} Semi Bold"`)
   })
 
   test('takes paints, links, a size, and a name, which need no font', () => {
