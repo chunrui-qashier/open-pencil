@@ -41,6 +41,7 @@ import {
   setRangeParagraphSpacing,
   type FigmaLetterSpacing
 } from '#core/figma-api/text'
+import { assertFontLoaded, assertTextFontsLoaded } from '#core/figma-api/text/loaded-fonts'
 import {
   assertTextRange,
   getRangeTextStyle,
@@ -58,6 +59,7 @@ import {
   styleRunsWithPatch,
   type TextStylePatch
 } from '#core/text/character-style'
+import { textFontFace } from '#core/text/requirements'
 
 import { hyperlinkTarget } from './hyperlink'
 import { invalid, received } from './messages'
@@ -345,7 +347,11 @@ const RANGE_SETTERS: Record<string, RangeSetter> = {
     if ((value as number) < 1) throw invalid(method, 'Number must be greater than or equal to 1')
     return { fontSize: value as number }
   },
-  setRangeFontName: (method, node, start, _end, value) => fontNameStyle(method, node, start, value),
+  setRangeFontName: (method, node, start, _end, value) => {
+    const style = fontNameStyle(method, node, start, value)
+    assertFontLoaded(method, textFontFace(node, style))
+    return style
+  },
   setRangeFills: (method, _node, _start, _end, value) => ({
     fills: fillsFromPaints(method, value)
   }),
@@ -394,6 +400,17 @@ const RANGE_SETTERS: Record<string, RangeSetter> = {
     hyperlink: hyperlinkTarget(method, value, graph)
   })
 }
+
+/** Range setters that leave the text's layout alone, so Figma takes them with fonts unloaded. */
+const RANGE_SETTERS_WITHOUT_FONTS = new Set([
+  'setRangeFills',
+  'setRangeHyperlink',
+  'setRangeTextDecorationStyle',
+  'setRangeTextDecorationOffset',
+  'setRangeTextDecorationThickness',
+  'setRangeTextDecorationColor',
+  'setRangeTextDecorationSkipInk'
+])
 
 /** Range getters by method and the segment field each reads. */
 const RANGE_GETTERS: Record<string, TextSegmentField> = {
@@ -510,6 +527,7 @@ export function installTextRangeMethods(
         const node = raw(this, internals)
         assertTextRange(method, node, start, end)
         const patch = setter(method, node, start, end, value, graph(this, internals))
+        if (!RANGE_SETTERS_WITHOUT_FONTS.has(method)) assertTextFontsLoaded(method, node)
         updateNode(this, internals, { styleRuns: styleRunsWithPatch(node, start, end, patch) })
       }
     }
@@ -537,6 +555,7 @@ export function installTextRangeMethods(
   methods.setRangeListOptions = {
     value(this: ProxyThis, start: number, end: number, value: TextListOptions) {
       assertProxyEditable(this, internals)
+      assertTextFontsLoaded('setRangeListOptions', raw(this, internals))
       setRangeListOptions(graph(this, internals), raw(this, internals), start, end, value)
     }
   }
@@ -548,6 +567,7 @@ export function installTextRangeMethods(
   methods.setRangeIndentation = {
     value(this: ProxyThis, start: number, end: number, value: number) {
       assertProxyEditable(this, internals)
+      assertTextFontsLoaded('setRangeIndentation', raw(this, internals))
       setRangeIndentation(graph(this, internals), raw(this, internals), start, end, value)
     }
   }
@@ -560,6 +580,7 @@ export function installTextRangeMethods(
     methods[`setRange${name}`] = {
       value(this: ProxyThis, start: number, end: number, value: number) {
         assertProxyEditable(this, internals)
+        assertTextFontsLoaded(`setRange${name}`, raw(this, internals))
         setRangeParagraphSpacing(
           graph(this, internals),
           raw(this, internals),

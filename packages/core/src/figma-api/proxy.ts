@@ -49,6 +49,7 @@ import { installShapeWithTextAccessors } from './shape-with-text'
 import { installSlotAccessors, prepareSlotMove, prepareSlotRemoval } from './slots'
 import type { FigmaLetterSpacing, FigmaLineHeight } from './text'
 import * as TextProxy from './text'
+import { assertTextFontsLoaded } from './text/loaded-fonts'
 import { containerTransform, setContainerTransform } from './transform'
 import * as Traversal from './traversal'
 import type { FigmaTransform } from './types'
@@ -297,10 +298,12 @@ export class FigmaNodeProxy {
     characters: string,
     useStyle: TextProxy.InsertStyleSource = 'BEFORE'
   ): void {
+    assertTextFontsLoaded('insertCharacters', this._raw())
     TextProxy.insertCharacters(this[INTERNAL_GRAPH], this._raw(), start, characters, useStyle)
   }
 
   deleteCharacters(start: number, end: number): void {
+    assertTextFontsLoaded('deleteCharacters', this._raw())
     TextProxy.deleteCharacters(this[INTERNAL_GRAPH], this._raw(), start, end)
   }
 
