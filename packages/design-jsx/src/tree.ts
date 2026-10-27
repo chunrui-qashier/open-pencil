@@ -223,7 +223,7 @@ export type EllipseProps = {
 }
 /** A `<Vector>`'s path, in SVG's syntax as `d` or as Figma's `vectorPaths`. */
 export type VectorProps = {
-  /** Path data as SVG writes it, every subpath filled under `fillRule`. */
+  /** Path data as SVG writes it, filled under `fillRule`; an open subpath fills only without a stroke. */
   d?: string
   fillRule?: 'nonzero' | 'evenodd'
   /** Paths with their own winding rules, as export writes them; `NONE` draws an open path. */

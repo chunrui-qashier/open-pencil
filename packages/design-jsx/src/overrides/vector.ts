@@ -8,6 +8,8 @@ import {
   transformVectorNetwork
 } from '@open-pencil/scene-graph/vector-network'
 
+import { designJSXProp } from '../definitions'
+import { normalizeStyleProps } from '../props-overrides'
 import { parseScriptInput } from '../schema'
 
 const FILL_RULES = { nonzero: 'NONZERO', evenodd: 'EVENODD' } as const
@@ -35,13 +37,20 @@ function parsedNetwork(result: ReturnType<typeof parseSVGPathData>, which: strin
 
 /**
  * The vector network a `<Vector>`'s `d` or `paths` draws, in the coordinates they are written
- * in, or null when it has neither. `d` reads as SVG does; `paths` as Figma's `vectorPaths`.
+ * in, or null when it has neither. `d` reads as SVG does, its open subpaths filled only when
+ * `fillsOpenSubpaths`; `paths` as Figma's `vectorPaths`.
  */
-function vectorNetworkProp(props: Record<string, unknown>): VectorNetwork | null {
+function vectorNetworkProp(
+  props: Record<string, unknown>,
+  fillsOpenSubpaths: boolean
+): VectorNetwork | null {
   const parsed = parseScriptInput('Invalid <Vector> props', vectorPropsSchema, props)
   if (parsed.d) {
     const windingRule = FILL_RULES[parsed.fillRule ?? 'nonzero']
-    return parsedNetwork(parseSVGPathData(parsed.d, windingRule), '`d`')
+    return parsedNetwork(
+      parseSVGPathData(parsed.d, windingRule, { includeOpenRegions: fillsOpenSubpaths }),
+      '`d`'
+    )
   }
   if (!parsed.paths) return null
   return mergeVectorNetworks(
@@ -62,10 +71,10 @@ interface VectorSize {
  * them: a number, a variable, or a layout value. The layer already holds what they resolve to.
  */
 function vectorSize(props: Record<string, unknown>, node: SceneNode): VectorSize {
-  const sets = (...names: string[]) => names.some((name) => props[name] !== undefined)
+  const sized = normalizeStyleProps(props)
   return {
-    width: sets('w', 'width') ? node.width : undefined,
-    height: sets('h', 'height') ? node.height : undefined
+    width: designJSXProp(sized, 'w') === undefined ? undefined : node.width,
+    height: designJSXProp(sized, 'h') === undefined ? undefined : node.height
   }
 }
 
@@ -103,7 +112,11 @@ export function placeVectorPaths(
   vectorBounds: (network: VectorNetwork) => Rect
 ): void {
   if (node.type !== 'VECTOR') return
-  const network = vectorNetworkProp(props)
+  // A filled vector strokes its regions, which close, so an open subpath becomes one only when
+  // nothing strokes it, as SVG import decides.
+  const fillsOpenSubpaths =
+    node.fills.some((fill) => fill.visible) && !node.strokes.some((stroke) => stroke.visible)
+  const network = vectorNetworkProp(props, fillsOpenSubpaths)
   if (!network) return
   graph.updateNode(
     node.id,

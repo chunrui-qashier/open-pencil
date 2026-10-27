@@ -70,6 +70,25 @@ describe('<Vector> paths', () => {
     expect(node.vectorNetwork?.vertices[0]).toEqual({ x: 4, y: 4 })
   })
 
+  test('take their size from style as from w and h', async () => {
+    const node = await render(
+      '<Vector style={{ width: 24, height: 24 }} d="M4 4 L20 4 L20 20 Z" />'
+    )
+    expect(node).toMatchObject({ x: 0, y: 0, width: 24, height: 24 })
+    expect(node.vectorNetwork?.vertices[0]).toEqual({ x: 4, y: 4 })
+  })
+
+  test('fill an open path as if closed only when nothing strokes it', async () => {
+    const filled = await render('<Vector d="M0 0 L20 0 L20 20" bg="#000" />')
+    expect(vectorNetworkPaths(expectDefined(filled.vectorNetwork, 'network'))).toEqual([
+      { windingRule: 'NONZERO', data: 'M0 0L20 0L20 20' }
+    ])
+    const stroked = await render('<Vector d="M0 0 L20 0 L20 20" bg="#000" stroke="#000" />')
+    expect(vectorNetworkPaths(expectDefined(stroked.vectorNetwork, 'network'))).toEqual([
+      { windingRule: 'NONE', data: 'M0 0L20 0L20 20' }
+    ])
+  })
+
   test('say what is wrong with a path', async () => {
     await expect(render('<Vector d="M0 0 L" />')).rejects.toThrow('Invalid <Vector> `d`')
     await expect(
