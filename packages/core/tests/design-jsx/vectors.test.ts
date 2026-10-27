@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 
 import { expectDefined, getNodeOrThrow } from '#core-tests/helpers/assert'
+import { pick } from 'es-toolkit'
 
 import { renderJSX } from '@open-pencil/core/design-jsx'
+import { sceneNodeToJSX } from '@open-pencil/design-jsx'
 import { SceneGraph } from '@open-pencil/scene-graph'
 import { vectorNetworkPaths } from '@open-pencil/scene-graph/vector-network'
 
@@ -61,5 +63,43 @@ describe('<Vector> paths', () => {
       render(`<Vector paths={[{ windingRule: 'NONZERO', data: 'M0 0 h10 v10 Z' }]} />`)
     ).rejects.toThrow('Invalid <Vector> paths[0]')
     await expect(render('<Vector d="M0 0 L1 1" paths={[]} />')).rejects.toThrow('not both')
+  })
+})
+
+describe('<Vector> export', () => {
+  const pathsOf = (node: { vectorNetwork: Parameters<typeof vectorNetworkPaths>[0] | null }) =>
+    vectorNetworkPaths(expectDefined(node.vectorNetwork, 'network'))
+
+  test('writes the paths a vector draws, which render back to the same layer', async () => {
+    const graph = new SceneGraph()
+    const [source] = await renderJSX(
+      graph,
+      `<Vector x={8} y={4} w={24} h={24} bg="#E22" paths={[{ windingRule: 'EVENODD', data: 'M4 4L20 4L20 20L4 20L4 4ZM8 8L16 8L16 16L8 16L8 8Z' }, { windingRule: 'NONE', data: 'M0 22L24 22' }]} />`
+    )
+    const jsx = sceneNodeToJSX(source.id, graph)
+    expect(jsx).toContain('paths={[')
+    const [result] = await renderJSX(graph, jsx)
+    const before = getNodeOrThrow(graph, source.id)
+    const after = getNodeOrThrow(graph, result.id)
+    expect(pick(after, ['x', 'y', 'width', 'height'])).toEqual(
+      pick(before, ['x', 'y', 'width', 'height'])
+    )
+    expect(pathsOf(after)).toEqual(pathsOf(before))
+    expect(sceneNodeToJSX(result.id, graph)).toBe(jsx)
+  })
+
+  test('keeps inline SVG artwork drawing after a round trip', async () => {
+    const graph = new SceneGraph()
+    const [source] = await renderJSX(
+      graph,
+      '<svg viewBox="0 0 24 24" size={24}><path d="M12 2 L22 22 L2 22 Z" fill="#000" /></svg>'
+    )
+    const [result] = await renderJSX(graph, sceneNodeToJSX(source.id, graph))
+    const vectors = (id: string) => graph.getChildren(id).filter((child) => child.type === 'VECTOR')
+    expect(vectors(result.id).map(pathsOf)).toEqual(vectors(source.id).map(pathsOf))
+    expect(vectors(result.id)).toHaveLength(1)
+    expect(pathsOf(vectors(result.id)[0])).toEqual([
+      { windingRule: 'NONZERO', data: 'M12 2L22 22L2 22L12 2Z' }
+    ])
   })
 })
