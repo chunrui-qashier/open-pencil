@@ -51,18 +51,21 @@ function vectorNetworkProp(props: Record<string, unknown>): VectorNetwork | null
   )
 }
 
-/** The size a `<Vector>` is given: `w` and `h` when they are numbers. */
+/** The size a `<Vector>` is given, on the axes its props size. */
 interface VectorSize {
   width?: number
   height?: number
 }
 
-/** The size a `<Vector>`'s props give it, by `w`/`width` and `h`/`height`. */
-function vectorSize(props: Record<string, unknown>): VectorSize {
-  const number = (value: unknown) => (typeof value === 'number' ? value : undefined)
+/**
+ * The size of `node` on the axes `props` set, by `w`/`width` and `h`/`height`, however they set
+ * them: a number, a variable, or a layout value. The layer already holds what they resolve to.
+ */
+function vectorSize(props: Record<string, unknown>, node: SceneNode): VectorSize {
+  const sets = (...names: string[]) => names.some((name) => props[name] !== undefined)
   return {
-    width: number(props.w) ?? number(props.width),
-    height: number(props.h) ?? number(props.height)
+    width: sets('w', 'width') ? node.width : undefined,
+    height: sets('h', 'height') ? node.height : undefined
   }
 }
 
@@ -102,5 +105,8 @@ export function placeVectorPaths(
   if (node.type !== 'VECTOR') return
   const network = vectorNetworkProp(props)
   if (!network) return
-  graph.updateNode(node.id, vectorGeometry(network, vectorBounds(network), vectorSize(props), node))
+  graph.updateNode(
+    node.id,
+    vectorGeometry(network, vectorBounds(network), vectorSize(props, node), node)
+  )
 }

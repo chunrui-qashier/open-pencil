@@ -57,6 +57,19 @@ describe('<Vector> paths', () => {
     ])
   })
 
+  test('keep a size bound to a variable, drawing the path in that box', async () => {
+    const graph = new SceneGraph()
+    const collection = graph.createCollection('Sizes')
+    graph.createVariable('Icon', 'FLOAT', collection.id, 32)
+    const [created] = await renderJSX(
+      graph,
+      '<Vector w={designVar("Icon")} h={designVar("Icon")} d="M4 4 L20 4 L20 20 Z" />'
+    )
+    const node = getNodeOrThrow(graph, created.id)
+    expect(node).toMatchObject({ x: 0, y: 0, width: 32, height: 32 })
+    expect(node.vectorNetwork?.vertices[0]).toEqual({ x: 4, y: 4 })
+  })
+
   test('say what is wrong with a path', async () => {
     await expect(render('<Vector d="M0 0 L" />')).rejects.toThrow('Invalid <Vector> `d`')
     await expect(
