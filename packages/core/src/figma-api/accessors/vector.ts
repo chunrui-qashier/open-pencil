@@ -178,11 +178,7 @@ function readVectorPaths(
   const node = raw(target, internals)
   const paths =
     node.vectorNetwork && node.vectorNetwork.segments.length > 0
-      ? // A network read from an older file may have no regions.
-        vectorNetworkPaths({
-          ...node.vectorNetwork,
-          regions: (node.vectorNetwork as Partial<SceneVectorNetwork>).regions ?? []
-        })
+      ? vectorNetworkPaths(node.vectorNetwork)
       : node.fillGeometry.map((geometry) => ({
           windingRule: geometry.windingRule,
           data: geometryBlobToSVGPath(geometry.commandsBlob, null)
