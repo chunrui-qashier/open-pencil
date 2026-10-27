@@ -36,7 +36,7 @@ import FollowAgentsToggle from '@/components/chat/FollowAgentsToggle.vue'
 import { useImageDrop } from '@/components/chat/input/useImageDrop'
 import ProviderSetup from '@/components/chat/ProviderSetup.vue'
 
-const { isConfigured, ensureChat, history, chatFailure, clearChatFailure } = useAIChat()
+const { isConfigured, ensureChat, history, chatFailure, clearChatFailure, providerID } = useAIChat()
 const { ai } = useI18n()
 const dates = useDateFormat()
 const runLocation = useChatRunLocation()

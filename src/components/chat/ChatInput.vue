@@ -83,6 +83,8 @@ function restoreDraft(submission: ChatSubmission): void {
   else for (const image of submission.images) revokeImagePreviewURL(image.previewURL)
 }
 
+/** A reply is on its way, so the credit balance waits to update until it ends. */
+const replying = computed(() => status === 'streaming' || status === 'submitted')
 /** Why images dropped now would not be attached, or null when they would. */
 const dropRefusal = computed(() => {
   if (disabled) return ai.value.dropImagesAfterReply
@@ -213,7 +215,7 @@ const selectedProfileName = computed(
             </template>
           </ChatProfileSelect>
           <ChatThinkingSelect />
-          <ChatCreditBalance :replying="isStreaming" />
+          <ChatCreditBalance :replying="replying" />
         </template>
       </div>
     </template>
