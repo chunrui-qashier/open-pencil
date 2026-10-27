@@ -1,0 +1,1 @@
+- `@open-pencil/core/io/formats/svg` no longer exports `vectorNetworkToSVGPaths`; import it from `@open-pencil/scene-graph/vector-network`.
