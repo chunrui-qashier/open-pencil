@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 
 import type { VectorNetwork } from '@open-pencil/scene-graph'
+import { parseSVGPath } from '@open-pencil/scene-graph/parse-path'
 import {
   mergeVectorNetworks,
+  vectorNetworkPaths,
   vectorNetworkToSVGPaths
 } from '@open-pencil/scene-graph/vector-network'
 
@@ -218,5 +220,147 @@ describe('vectorNetworkToSVGPaths() with regions and open segments', () => {
     expect(vectorNetworkToSVGPaths({ ...network, segments: network.segments.slice(0, 3) })).toEqual(
       ['M19 20L9 12L19 4L19 20Z']
     )
+  })
+})
+
+describe('vectorNetworkPaths()', () => {
+  const still = { x: 0, y: 0 }
+  const segment = (start: number, end: number, tangentStart = still, tangentEnd = still) => ({
+    start,
+    end,
+    tangentStart,
+    tangentEnd
+  })
+  /** A network's segments by their end points, in either direction. */
+  const segmentsOf = (network: VectorNetwork) =>
+    network.segments
+      .map(({ start, end }) =>
+        [network.vertices[start], network.vertices[end]]
+          .map(({ x, y }) => `${x},${y}`)
+          .sort()
+          .join(' ')
+      )
+      .sort()
+  /** The paths, and that parsing them back draws every segment once. */
+  const traced = (network: VectorNetwork) => {
+    const paths = vectorNetworkPaths(network)
+    const back = parseSVGPath(paths.map((path) => path.data).join(''), 'NONZERO')
+    expect(segmentsOf(back)).toEqual(segmentsOf(network))
+    return paths
+  }
+
+  test('has no paths for an empty network', () => {
+    expect(vectorNetworkPaths({ vertices: [], segments: [], regions: [] })).toEqual([])
+  })
+
+  test('keeps full precision', () => {
+    const network: VectorNetwork = {
+      vertices: [
+        { x: 0.123456789, y: 0 },
+        { x: 10, y: 1 / 3 }
+      ],
+      segments: [segment(0, 1)],
+      regions: []
+    }
+    expect(traced(network)).toEqual([
+      { windingRule: 'NONE', data: 'M0.123456789 0L10 0.3333333333333333' }
+    ])
+  })
+
+  test('draws every branch of a vertex three segments meet at', () => {
+    const network: VectorNetwork = {
+      vertices: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 20, y: 10 },
+        { x: 20, y: -10 }
+      ],
+      segments: [segment(0, 1), segment(1, 2), segment(1, 3)],
+      regions: []
+    }
+    expect(traced(network)).toEqual([{ windingRule: 'NONE', data: 'M0 0L10 0L20 10M10 0L20 -10' }])
+  })
+
+  test('keeps a segment of no length', () => {
+    const network: VectorNetwork = {
+      vertices: [
+        { x: 0, y: 0 },
+        { x: 0, y: 0 },
+        { x: 10, y: 0 }
+      ],
+      segments: [segment(0, 1), segment(1, 2)],
+      regions: []
+    }
+    expect(traced(network)).toEqual([{ windingRule: 'NONE', data: 'M0 0L0 0L10 0' }])
+  })
+
+  test('follows segments written against the way their loop runs, curves included', () => {
+    const loop: VectorNetwork = {
+      vertices: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 10 }
+      ],
+      segments: [segment(0, 1), segment(2, 1), segment(0, 2)],
+      regions: [{ windingRule: 'NONZERO', loops: [[0, 1, 2]] }]
+    }
+    expect(traced(loop)).toEqual([{ windingRule: 'NONZERO', data: 'M0 0L10 0L10 10L0 0Z' }])
+    const curve: VectorNetwork = {
+      vertices: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 }
+      ],
+      segments: [segment(1, 0, { x: 0, y: 5 }, { x: 0, y: 5 })],
+      regions: []
+    }
+    expect(traced(curve)).toEqual([{ windingRule: 'NONE', data: 'M10 0C10 5 0 5 0 0' }])
+  })
+
+  test('closes each loop of a region, loops that share a vertex too', () => {
+    const network: VectorNetwork = {
+      vertices: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 5, y: 5 },
+        { x: 0, y: 10 },
+        { x: 10, y: 10 }
+      ],
+      segments: [
+        segment(0, 1),
+        segment(1, 2),
+        segment(2, 0),
+        segment(2, 3),
+        segment(3, 4),
+        segment(4, 2)
+      ],
+      regions: [
+        {
+          windingRule: 'EVENODD',
+          loops: [
+            [0, 1, 2],
+            [3, 4, 5]
+          ]
+        }
+      ]
+    }
+    expect(traced(network)).toEqual([
+      { windingRule: 'EVENODD', data: 'M0 0L10 0L5 5L0 0ZM5 5L0 10L10 10L5 5Z' }
+    ])
+  })
+
+  test('skips a region with no loops and keeps the winding rule of the next', () => {
+    const network: VectorNetwork = {
+      vertices: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 10 }
+      ],
+      segments: [segment(0, 1), segment(1, 2), segment(2, 0)],
+      regions: [
+        { windingRule: 'NONZERO', loops: [] },
+        { windingRule: 'EVENODD', loops: [[0, 1, 2]] }
+      ]
+    }
+    expect(traced(network)).toEqual([{ windingRule: 'EVENODD', data: 'M0 0L10 0L10 10L0 0Z' }])
   })
 })
