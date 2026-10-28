@@ -1,15 +1,20 @@
 import { groupBy } from 'es-toolkit'
+import { dirname, join } from 'pathe'
 import { filename } from 'pathe/utils'
 
 import { sceneNodeToJSX, selectionToJSX } from '@open-pencil/design-jsx'
 import { isDrawIOExportFileName } from '@open-pencil/drawio'
 import {
   buildPenGraph,
+  importedDocument,
   isDataURL,
   parsePenDocument,
   penAssets,
+  withImports,
+  type PenDocument,
   type PenIconRequest,
-  type PenIconSource
+  type PenIconSource,
+  type PenImports
 } from '@open-pencil/pen'
 import type { SceneGraph } from '@open-pencil/scene-graph'
 
@@ -291,6 +296,31 @@ async function loadPenIcons(
   }
 }
 
+/**
+ * The documents `doc` imports, read through the host and named as `doc` names them, with the
+ * documents they import in turn. `at` is `doc`'s path relative to the document being read; an
+ * import the host cannot read, or one that imports itself through others, is left out.
+ */
+async function loadPenImports(
+  doc: PenDocument,
+  at: string,
+  input: ReadDocumentInput,
+  reading: ReadonlySet<string> = new Set([at])
+): Promise<PenImports> {
+  const entries = await Promise.all(
+    Object.entries(doc.imports ?? {}).map(async ([alias, path]) => {
+      const target = join(dirname(at), path)
+      if (reading.has(target)) return null
+      const bytes = await input.readImport?.(target).catch(() => null)
+      if (!bytes) return null
+      const imported = parsePenDocument(new TextDecoder().decode(bytes))
+      const nested = await loadPenImports(imported, target, input, new Set([...reading, target]))
+      return [alias, importedDocument(alias, imported, nested)] as const
+    })
+  )
+  return new Map(entries.filter((entry) => entry !== null))
+}
+
 export const penFormat: IOFormatAdapter<'pen'> = {
   id: 'pen',
   label: 'Pencil Document',
@@ -307,7 +337,9 @@ export const penFormat: IOFormatAdapter<'pen'> = {
   },
   async readDocument(input, context) {
     const doc = parsePenDocument(new TextDecoder().decode(input.data))
-    const assets = penAssets(doc)
+    const imports = await loadPenImports(doc, '', input)
+    // Icons the imported components draw too; their images are named relative to their own file.
+    const assets = penAssets(withImports(doc, imports))
     const [images, icons] = await Promise.all([
       loadPenImages(assets.images, input),
       loadPenIcons(assets.icons, context?.icons ?? defaultIcons)
@@ -316,6 +348,7 @@ export const penFormat: IOFormatAdapter<'pen'> = {
     const graph = buildPenGraph(doc, {
       images,
       icons,
+      imports,
       layout: (target) =>
         layoutAuthoredNodes(
           target,

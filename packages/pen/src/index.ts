@@ -7,6 +7,7 @@ export {
   type PenAssets,
   type PenIconRequest
 } from './assets'
+export { importedDocument, withImports, type PenImports } from './imports'
 export type { PenIconSource } from './nodes'
 export {
   buildPenGraph,
