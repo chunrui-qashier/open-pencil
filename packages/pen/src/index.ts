@@ -4,6 +4,7 @@ export {
   isDataURL,
   isDocumentAssetPath,
   penAssets,
+  rebaseImages,
   type PenAssets,
   type PenIconRequest
 } from './assets'

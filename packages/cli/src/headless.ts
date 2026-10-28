@@ -44,9 +44,10 @@ async function readWithin(root: string, path: string): Promise<Uint8Array | null
 }
 
 /**
- * Reads a document a document imports, such as a `.pen` library in a sibling folder. Imports may
- * leave the document's folder, but not the working directory, which a repository's tooling runs
- * from; a document outside the working directory imports only from its own folder.
+ * Reads a document a document imports, such as a `.pen` library in a sibling folder, and the
+ * files it names. Imports may leave the document's folder, but not the working directory, which a
+ * repository's tooling runs from; a document outside the working directory imports only from its
+ * own folder.
  */
 function documentImportReader(filePath: string) {
   return async (path: string): Promise<Uint8Array | null> => {
